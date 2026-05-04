@@ -36,10 +36,16 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 ## State Management
 
-- Use signals for local component state
+- Use NgRx Signal Stores (`@ngrx/signals`) for shared/feature state
+- Define stores with `signalStore()`, using `withState`, `withComputed`, `withMethods`, and `withHooks`
+- Use `patchState` to update store state; do NOT mutate state directly
+- Provide stores at the appropriate level (`providedIn: 'root'` for global, or component/route providers for scoped)
+- Inject stores via `inject(MyStore)`; consume state through the store's exposed signals
+- Use `rxMethod` from `@ngrx/signals/rxjs-interop` for reactive side effects
+- Use `withEntities` from `@ngrx/signals/entities` for collections
+- Use plain signals only for trivial local component state (UI toggles, form-local flags)
 - Use `computed()` for derived state
 - Keep state transformations pure and predictable
-- Do NOT use `mutate` on signals, use `update` or `set` instead
 
 ## Templates
 
