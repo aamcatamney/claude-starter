@@ -1,16 +1,10 @@
-import { Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet],
-  template: `
-    <h1>Welcome to {{ title() }}!</h1>
-
-    <router-outlet />
-  `,
-  styles: [],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `<router-outlet />`,
 })
-export class App {
-  protected readonly title = signal('claude-starter');
-}
+export class App {}

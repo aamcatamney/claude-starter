@@ -34,22 +34,46 @@ Start a Postgres container:
 docker run --rm -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
 ```
 
-Build the Angular client (first run):
+Install Angular dependencies (first run):
 
 ```powershell
 cd ClientApp
 npm install
-npm run build
 cd ..
 ```
 
-Run the API:
+### Dev loop
+
+Two terminals, both same-origin (Angular output served from `wwwroot` by .NET — no `ng serve`, no proxy):
 
 ```powershell
+# Terminal 1 — rebuild Angular on change into dist/
+cd ClientApp
+npm run watch
+
+# Terminal 2 — run API (also serves the Angular bundle and SPA fallback)
+dotnet run
+```
+
+### Production build
+
+```powershell
+cd ClientApp
+npm run build
+cd ..
 dotnet run
 ```
 
 On startup the app ensures the database exists, then DbUp applies any pending scripts from `Migrations/Scripts/` and tracks them in the `schemaversions` table. Re-running is idempotent.
+
+### Frontend tests
+
+```powershell
+cd ClientApp
+npm test
+```
+
+Vitest (jsdom) via the Angular `@angular/build:unit-test` builder. Specs live next to the code under `src/app/core/auth/*.spec.ts`.
 
 ## Database schema
 
@@ -131,18 +155,52 @@ curl.exe -c cookies.txt -b cookies.txt -X POST "$base/api/auth/login" `
   -d '{"email":"smoke@example.com","password":"correct-horse-battery","rememberMe":true}'
 ```
 
+## Frontend
+
+Angular 21 (zoneless-ready, standalone components, signals). NgRx Signal Stores for shared state. Tailwind v4 for styling.
+
+### Routes
+
+| Path        | Auth          | Component           | Notes                                   |
+|-------------|---------------|---------------------|-----------------------------------------|
+| `/`         | required      | `landing.page.ts`   | Placeholder home with sign-out          |
+| `/login`    | anonymous     | `login.page.ts`     | Authed user is redirected back          |
+| `/register` | anonymous     | `register.page.ts`  | Authed user is redirected back          |
+| `/**`       | -             | -                   | Falls through to `/`                    |
+
+`authGuard` and `redirectIfAuthedGuard` both read the root-provided `AuthStore`. Unauthed access to `/` redirects to `/login?returnUrl=/`. Both auth pages honour `returnUrl` on success (relative URLs only — open-redirect protection rejects absolute and protocol-relative values).
+
+### Bootstrap
+
+`provideAppInitializer` calls `GET /api/auth/me` before the first route resolves, hydrating `AuthStore.user` and `status`. The same call re-issues the `XSRF-TOKEN` cookie so logout has a token ready.
+
+`provideHttpClient(withFetch(), withXsrfConfiguration({ cookieName: 'XSRF-TOKEN', headerName: 'X-XSRF-TOKEN' }))` matches the backend's antiforgery configuration. Same-origin only — that's why `npm run watch` + `dotnet run` is the dev loop (no proxy needed).
+
+### `AuthStore`
+
+Root-provided NgRx Signal Store (`@ngrx/signals`) with state `{ user, status, error, pending }` and methods `loadMe / login / register / logout / clearError`. `displayName` falls back to email when `displayName` is null.
+
+### Error handling
+
+`auth-error.ts` maps RFC 7807 `problem+json` responses to a small `AuthErrorKind` union (`invalid-credentials`, `email-taken`, `validation`, `rate-limited`, `network`, `unknown`). The store stores one error at a time; the form pages render it as an inline `role="alert"` banner.
+
+A global `authInterceptor` catches 401s on non-`/api/auth/*` calls, clears the store, and routes to `/login` with `returnUrl` set to the current URL.
+
 ## Project layout
 
 ```
-Data/                       IDbConnectionFactory + Npgsql impl
-Migrations/                 DbMigrator + Scripts/*.sql (embedded)
-Models/                     Domain models
-Repositories/               Dapper repositories
-Services/Auth/              IPasswordHasher + BCrypt impl
-Services/DataProtection/    PostgresXmlRepository (Data Protection keys)
-Endpoints/Auth/             Minimal API endpoints (one per file)
-ClientApp/                  Angular app
-Program.cs                  Composition root, runs migrations on startup
+Data/                                       IDbConnectionFactory + Npgsql impl
+Migrations/                                 DbMigrator + Scripts/*.sql (embedded)
+Models/                                     Domain models
+Repositories/                               Dapper repositories
+Services/Auth/                              IPasswordHasher + BCrypt impl
+Services/DataProtection/                    PostgresXmlRepository (Data Protection keys)
+Endpoints/Auth/                             Minimal API endpoints (one per file)
+ClientApp/src/app/
+  core/auth/                                AuthStore, api, guards, interceptor, error mapper
+  features/auth/                            login + register pages, lazy auth.routes.ts
+  features/landing/                         placeholder home with top bar + sign out
+Program.cs                                  Composition root, runs migrations on startup
 ```
 
 ## Adding a migration
