@@ -30,10 +30,22 @@ Auth rate limit is configurable via `RateLimit:Auth:PermitLimit` (default `10`) 
 
 ## Running locally
 
-Start a Postgres container:
+Start Postgres via Docker Compose:
 
 ```powershell
-docker run --rm -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
+docker compose up -d
+```
+
+Tear down (keep data):
+
+```powershell
+docker compose down
+```
+
+Tear down and wipe the volume:
+
+```powershell
+docker compose down -v
 ```
 
 Install Angular dependencies (first run):
@@ -90,10 +102,10 @@ Two test projects under `tests/`, both xUnit v3 with AwesomeAssertions and NSubs
 
 ```powershell
 # Just the unit tests (fast, no Docker)
-dotnet test tests/claude-starter.UnitTests
+dotnet test --project tests/claude-starter.UnitTests
 
 # Just the integration tests (needs Docker running)
-dotnet test tests/claude-starter.IntegrationTests
+dotnet test --project tests/claude-starter.IntegrationTests
 
 # Everything
 dotnet test
