@@ -483,8 +483,8 @@ $RECYCLE.BIN/
 
 # Claude Code — keep settings.json, ignore local overrides and vendored skills
 .claude/*
-!.claude/settings.json
 
-# Vendored agent skills (rehydrate from skills-lock.json)
+# Vendored agent skills
 .agents/skills/
 
+skills-lock.json
