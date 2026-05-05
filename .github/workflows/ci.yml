@@ -31,7 +31,7 @@ jobs:
         run: dotnet build claude-starter.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test claude-starter.sln --configuration Release --no-build --logger "console;verbosity=normal"
+        run: dotnet test --solution claude-starter.sln --configuration Release --no-build
 
   frontend:
     name: Frontend (build)
@@ -47,7 +47,9 @@ jobs:
           node-version: '22'
 
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: |
+          rm -f package-lock.json
+          npm install --no-audit --no-fund
 
       - name: Build
         run: npm run build -- --configuration production
