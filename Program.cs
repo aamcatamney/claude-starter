@@ -106,6 +106,9 @@ builder.Services.AddAntiforgery(options =>
         : CookieSecurePolicy.Always;
 });
 
+var authPermitLimit = builder.Configuration.GetValue<int?>("RateLimit:Auth:PermitLimit") ?? 10;
+var authWindowSeconds = builder.Configuration.GetValue<int?>("RateLimit:Auth:WindowSeconds") ?? 60;
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -114,8 +117,8 @@ builder.Services.AddRateLimiter(options =>
             http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = authPermitLimit,
+                Window = TimeSpan.FromSeconds(authWindowSeconds),
                 QueueLimit = 0,
                 AutoReplenishment = true,
             }));
@@ -161,3 +164,5 @@ if (Directory.Exists(clientAppPath))
 }
 
 app.Run();
+
+public partial class Program;

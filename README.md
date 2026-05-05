@@ -26,6 +26,8 @@ Connection string is read from `ConnectionStrings:Postgres`. Default in `appsett
 ConnectionStrings__Postgres=Host=db;Port=5432;Database=claude_starter;Username=...;Password=...
 ```
 
+Auth rate limit is configurable via `RateLimit:Auth:PermitLimit` (default `10`) and `RateLimit:Auth:WindowSeconds` (default `60`). Integration tests bump the limit so they don't trip on shared loopback IPs.
+
 ## Running locally
 
 Start a Postgres container:
@@ -74,6 +76,36 @@ npm test
 ```
 
 Vitest (jsdom) via the Angular `@angular/build:unit-test` builder. Specs live next to the code under `src/app/core/auth/*.spec.ts`.
+
+## Backend tests
+
+Two test projects under `tests/`, both xUnit v3 with AwesomeAssertions and NSubstitute:
+
+| Project                              | Scope                                                    | Docker required |
+|--------------------------------------|----------------------------------------------------------|-----------------|
+| `tests/claude-starter.UnitTests`     | Pure services (`BCryptPasswordHasher`)                   | No              |
+| `tests/claude-starter.IntegrationTests` | `DbMigrator`, `UserRepository`, all `/api/auth/*` endpoints | Yes (Testcontainers spins up `postgres:16`) |
+
+### Run
+
+```powershell
+# Just the unit tests (fast, no Docker)
+dotnet test tests/claude-starter.UnitTests
+
+# Just the integration tests (needs Docker running)
+dotnet test tests/claude-starter.IntegrationTests
+
+# Everything
+dotnet test
+```
+
+### Integration test design
+
+- **One Postgres container per test run**, shared across the assembly via xUnit `ICollectionFixture<PostgresFixture>`.
+- **Migrations run once** at fixture start via `DbMigrator.Apply`.
+- **State reset between tests** via [Respawn](https://github.com/jbogard/Respawn). `schemaversions` and `data_protection_keys` are excluded so migration tracking and the in-memory key cache survive.
+- **App boot** uses `WebApplicationFactory<Program>`. The factory injects the container's connection string via `UseSetting("ConnectionStrings:Postgres", ...)` and runs in `Development` so cookie security policy permits HTTP loopback.
+- **Pre-existing users** are created through `TestDataSeeder`, which hashes via the real `BCryptPasswordHasher` so login tests can verify against them.
 
 ## Database schema
 
@@ -196,6 +228,8 @@ Repositories/                               Dapper repositories
 Services/Auth/                              IPasswordHasher + BCrypt impl
 Services/DataProtection/                    PostgresXmlRepository (Data Protection keys)
 Endpoints/Auth/                             Minimal API endpoints (one per file)
+tests/claude-starter.UnitTests/             xUnit v3 unit tests
+tests/claude-starter.IntegrationTests/      xUnit v3 + Testcontainers integration tests
 ClientApp/src/app/
   core/auth/                                AuthStore, api, guards, interceptor, error mapper
   features/auth/                            login + register pages, lazy auth.routes.ts
