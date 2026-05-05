@@ -2,6 +2,36 @@
 
 .NET 10 web app serving an Angular client. Backend uses Dapper + Npgsql against PostgreSQL with SQL migrations applied on startup via DbUp.
 
+<!-- TEMPLATE:START -->
+## Using this template
+
+Clone the repo, then rename the project to your own name. The rename scripts replace every `claude-starter` / `claude_starter` placeholder in source + filenames, strip this section, delete `.git/`, clean `bin/` and `obj/`, and self-delete.
+
+**Linux / macOS:**
+
+```bash
+./rename-project.sh my-new-app
+```
+
+**Windows (PowerShell):**
+
+```powershell
+./rename-project.ps1 my-new-app
+```
+
+Name must be kebab-case, 2-50 chars, starting with a letter (`^[a-z][a-z0-9-]{1,49}$`). The snake-case form (`my_new_app`) is derived automatically for namespaces and the Postgres database name.
+
+Flags: `--yes` / `-y` skip the confirmation prompt; `--force` bypasses the safety guard that checks you are still in the template directory.
+
+After it finishes:
+
+```bash
+git init && git add -A && git commit -m "Initial commit"
+cd ClientApp && npm install
+dotnet restore my-new-app.sln
+```
+<!-- TEMPLATE:END -->
+
 ## Stack
 
 - .NET 10 (single project, `claude-starter.csproj`)
