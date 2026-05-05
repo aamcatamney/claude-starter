@@ -89,6 +89,19 @@ npm test
 
 Vitest (jsdom) via the Angular `@angular/build:unit-test` builder. Specs live next to the code under `src/app/core/auth/*.spec.ts`.
 
+## Container build
+
+Multi-stage `Dockerfile` builds the Angular client (`node:22-bookworm-slim`), publishes the .NET app (`dotnet/sdk:10.0`), then ships on `dotnet/aspnet:10.0`. Runs as the image's non-root `$APP_UID` user on port `8080`.
+
+```powershell
+docker build -t claude-starter .
+docker run --rm -p 8080:8080 `
+  -e ConnectionStrings__Postgres="Host=host.docker.internal;Port=5432;Database=claude_starter;Username=postgres;Password=postgres" `
+  claude-starter
+```
+
+The app applies migrations on startup, so the database must be reachable when the container starts. Sequence the dependency at the orchestrator level (`depends_on: condition: service_healthy` in compose, init container in k8s).
+
 ## Backend tests
 
 Two test projects under `tests/`, both xUnit v3 with AwesomeAssertions and NSubstitute:
