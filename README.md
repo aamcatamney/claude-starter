@@ -265,3 +265,41 @@ Program.cs                                  Composition root, runs migrations on
 ## Adding a migration
 
 Create `Migrations/Scripts/NNNN_description.sql` (zero-padded sequence). The file is automatically included as an embedded resource. DbUp applies scripts in name order on next startup.
+
+## CI / CD
+
+GitHub Actions under `.github/workflows/`:
+
+| Workflow            | Trigger                          | Does                                                                 |
+|---------------------|----------------------------------|----------------------------------------------------------------------|
+| `ci.yml`            | PR + push to `main`              | Backend `dotnet test` (Testcontainers spins Postgres) + Angular `npm run build` in parallel on `ubuntu-latest`. |
+| `release.yml`       | Push to `main`, tags `v*`        | Builds multi-stage Dockerfile with buildx GHA cache, pushes to `ghcr.io/<owner>/claude-starter`. |
+
+### Image tags
+
+- `sha-<short>` on every push
+- `main` on main branch pushes
+- `vX.Y.Z`, `vX.Y`, `latest` on tags matching `v*`
+
+### Supply chain
+
+On `v*` tags only: SLSA build provenance + SBOM attestations are generated and pushed to the registry via `actions/attest-build-provenance` and buildx.
+
+### Dependabot
+
+`.github/dependabot.yml` watches NuGet (root), npm (`ClientApp/`), GitHub Actions, and Docker base images on a weekly cadence.
+
+### Branch protection (manual setup)
+
+Recommended on `main`:
+
+- Require PR before merge
+- Require status checks: `Backend (build + test)` and `Frontend (build)` from `CI`
+- Require branches up to date before merge
+- Restrict who can push to `main`
+
+These are repo-side settings — not enforceable from the workflow file.
+
+### Permissions
+
+Workflows use least-privilege `permissions:` blocks. Image push uses `GITHUB_TOKEN` against GHCR; no extra secrets required. Tag-driven attestations need `id-token: write` and `attestations: write`, both set in `release.yml`.
