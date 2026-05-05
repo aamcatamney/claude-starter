@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
-using Dapper;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -16,8 +15,6 @@ using claude_starter.Migrations;
 using claude_starter.Repositories;
 using claude_starter.Services.Auth;
 using claude_starter.Services.DataProtection;
-
-DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 var builder = WebApplication.CreateBuilder(args);
 
