@@ -44,7 +44,8 @@ if (-not $Force) {
     $dir = Split-Path -Leaf (Get-Location)
     $remote = ''
     if (Test-Path .git) {
-        $remote = (& git config --get remote.origin.url 2>$null) ?? ''
+        $remote = & git config --get remote.origin.url 2>$null
+        if (-not $remote) { $remote = '' }
     }
     if ($dir -ne $OldKebab -and $remote -notlike "*$OldKebab*") {
         Write-Error "This does not look like the $OldKebab template (dir=$dir, remote=$remote). Use -Force to override."
