@@ -5,7 +5,7 @@
 # (often Windows) and only locks host-platform optional native deps
 # (lightningcss, tailwindcss/oxide). Resolving fresh in-container pulls the
 # linux-x64-gnu binaries needed at build time.
-FROM node:25-bookworm-slim AS client-build
+FROM node:26-bookworm-slim AS client-build
 WORKDIR /src/ClientApp
 COPY ClientApp/package.json ./
 RUN npm install --no-audit --no-fund
