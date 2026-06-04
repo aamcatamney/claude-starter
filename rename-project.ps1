@@ -9,6 +9,8 @@ param(
 
     [switch]$Force,
 
+    [switch]$KeepGit,
+
     [switch]$Help
 )
 
@@ -24,6 +26,7 @@ Usage: ./rename-project.ps1 <new-name> [-Yes] [-Force]
   <new-name>   kebab-case, ^[a-z][a-z0-9-]{1,49}`$
   -Yes, -y     skip confirmation prompt
   -Force       bypass template-state safety guard
+  -KeepGit     do not remove .git/ (used by CI bootstrap)
 "@ | Write-Error
     exit 1
 }
@@ -85,7 +88,12 @@ Write-Host "About to rename: $OldKebab -> $NewName (snake form: $NewSnake)"
 Write-Host "  $($hits.Count) files will have content replaced"
 Write-Host "  csproj/sln + 2 test project dirs will be renamed"
 Write-Host "  README template block will be stripped"
-Write-Host "  bin/ obj/ cleaned, .git/ removed, both rename scripts self-delete"
+if ($KeepGit) {
+    Write-Host "  bin/ obj/ cleaned, .git/ kept, both rename scripts self-delete"
+}
+else {
+    Write-Host "  bin/ obj/ cleaned, .git/ removed, both rename scripts self-delete"
+}
 
 if (-not $Yes) {
     $ans = Read-Host "Continue? [y/N]"
@@ -152,8 +160,8 @@ Get-ChildItem -Recurse -Directory -Force -Include 'bin', 'obj' |
     Where-Object { $_.FullName -notmatch '[\\/]node_modules[\\/]' } |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-# Remove git history
-if (Test-Path .git) { Remove-Item .git -Recurse -Force }
+# Remove git history (skipped under -KeepGit so CI can commit the rename)
+if (-not $KeepGit -and (Test-Path .git)) { Remove-Item .git -Recurse -Force }
 
 # Self-delete
 Remove-Item -Force -ErrorAction SilentlyContinue rename-project.sh, rename-project.ps1
