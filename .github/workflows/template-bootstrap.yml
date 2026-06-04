@@ -1,0 +1,68 @@
+name: Template bootstrap
+
+# One-shot rename for repos generated from this template ("Use this template").
+# Derives the project name from the new repository's name, runs rename-project.sh,
+# then deletes itself. Never runs in the template repository itself.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: template-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  rename:
+    name: Rename from template
+    # Skip the template repo itself; only run in generated copies.
+    if: github.repository != 'aamcatamney/claude-starter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Bootstrap
+        run: |
+          set -euo pipefail
+
+          # Sentinel: if the placeholder project is gone, the rename already ran.
+          if [ ! -f claude-starter.csproj ]; then
+            echo "claude-starter.csproj not found — already renamed, nothing to do."
+            exit 0
+          fi
+
+          # Coerce the repository name to kebab-case, then validate.
+          raw='${{ github.event.repository.name }}'
+          name=$(printf '%s' "$raw" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -e 's/[^a-z0-9-]/-/g' -e 's/-\{2,\}/-/g' -e 's/^-//' -e 's/-$//')
+
+          if ! printf '%s' "$name" | grep -Eq '^[a-z][a-z0-9-]{1,49}$'; then
+            echo "::error::Cannot derive a valid project name from repository '$raw' (got '$name')."
+            echo "::error::Rename the repository to kebab-case (^[a-z][a-z0-9-]{1,49}$) and re-run this workflow."
+            exit 1
+          fi
+
+          echo "Renaming claude-starter -> $name"
+          chmod +x rename-project.sh
+          ./rename-project.sh "$name" --yes --force --keep-git
+
+          # Remove this bootstrap workflow so it never runs again.
+          rm -f .github/workflows/template-bootstrap.yml
+
+      - name: Commit rename
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m "chore: bootstrap project from template"
+          git push

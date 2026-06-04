@@ -5,15 +5,17 @@ OLD_KEBAB="claude-starter"
 OLD_SNAKE="claude_starter"
 SKIP_CONFIRM=0
 FORCE=0
+KEEP_GIT=0
 NEW=""
 
 usage() {
   cat >&2 <<EOF
-Usage: $0 <new-name> [--yes] [--force]
+Usage: $0 <new-name> [--yes] [--force] [--keep-git]
 
   <new-name>   kebab-case, ^[a-z][a-z0-9-]{1,49}$
   --yes, -y    skip confirmation prompt
   --force      bypass template-state safety guard
+  --keep-git   do not remove .git/ (used by CI bootstrap)
 EOF
   exit 1
 }
@@ -22,6 +24,7 @@ for arg in "$@"; do
   case "$arg" in
     -y|--yes) SKIP_CONFIRM=1 ;;
     --force)  FORCE=1 ;;
+    --keep-git) KEEP_GIT=1 ;;
     -h|--help) usage ;;
     -*) echo "Unknown flag: $arg" >&2; usage ;;
     *)  if [[ -z "$NEW" ]]; then NEW="$arg"; else usage; fi ;;
@@ -70,7 +73,11 @@ echo "About to rename: $OLD_KEBAB -> $NEW (snake form: $NEW_SNAKE)"
 echo "  ${#HITS[@]} files will have content replaced"
 echo "  csproj/sln + 2 test project dirs will be renamed"
 echo "  README template block will be stripped"
-echo "  bin/ obj/ cleaned, .git/ removed, both rename scripts self-delete"
+if [[ "$KEEP_GIT" -eq 0 ]]; then
+  echo "  bin/ obj/ cleaned, .git/ removed, both rename scripts self-delete"
+else
+  echo "  bin/ obj/ cleaned, .git/ kept, both rename scripts self-delete"
+fi
 if [[ "$SKIP_CONFIRM" -eq 0 ]]; then
   read -r -p "Continue? [y/N] " ans
   [[ "$ans" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
@@ -109,8 +116,10 @@ find . -type d \( -name bin -o -name obj \) \
   -not -path './ClientApp/node_modules/*' -not -path './node_modules/*' \
   -exec rm -rf {} + 2>/dev/null || true
 
-# Remove git history
-rm -rf .git
+# Remove git history (skipped under --keep-git so CI can commit the rename)
+if [[ "$KEEP_GIT" -eq 0 ]]; then
+  rm -rf .git
+fi
 
 # Self-delete
 rm -f rename-project.sh rename-project.ps1

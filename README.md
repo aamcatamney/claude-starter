@@ -134,6 +134,14 @@ MIT — see [LICENSE](LICENSE).
 <!-- TEMPLATE:START -->
 ## Using this template
 
+### Option 1 — "Use this template" button (automatic)
+
+Click **Use this template → Create a new repository**. A one-shot `Template bootstrap` GitHub Action runs on the new repo, derives the project name from the repository name (coerced to kebab-case), renames everything, and deletes itself. Watch it under the **Actions** tab; the rename lands as a `chore: bootstrap project from template` commit.
+
+If your repository name can't be coerced to a valid kebab-case name (`^[a-z][a-z0-9-]{1,49}$`), the workflow fails with a clear error — rename the repo and re-run it from the Actions tab.
+
+### Option 2 — clone and rename locally
+
 Clone the repo, then rename the project to your own name. The rename scripts replace every `claude-starter` / `claude_starter` placeholder in source + filenames, strip this section, delete `.git/`, clean `bin/` and `obj/`, and self-delete.
 
 **Linux / macOS:**
