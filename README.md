@@ -1,5 +1,10 @@
 # claude-starter
 
+[![CI](https://github.com/aamcatamney/claude-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/aamcatamney/claude-starter/actions/workflows/ci.yml)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![Angular 21](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)](https://angular.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 .NET 10 web app serving an Angular client. Backend uses Dapper + Npgsql against PostgreSQL with SQL migrations applied on startup via DbUp.
 
 ## Stack
@@ -11,6 +16,35 @@
 - BCrypt.Net-Next for password hashing
 - Cookie authentication (ASP.NET Core), Data Protection keys persisted in Postgres
 - Angular 21 client in `ClientApp/`, served as static files
+
+## Project structure
+
+```
+Program.cs              App wiring, auth, rate limiting, SPA fallback
+Endpoints/              Minimal API endpoints — one endpoint per file
+  Auth/                 /api/auth login, logout, register, me
+Repositories/           Dapper repositories (no EF Core)
+Services/               BCrypt password hashing, Postgres-backed Data Protection
+Data/                   Npgsql connection factory + Dapper config
+Models/                 Domain types
+Migrations/
+  DbMigrator.cs         DbUp runner (applied on startup)
+  Scripts/*.sql         Embedded migration scripts, applied in name order
+ClientApp/              Angular 21 client
+```
+
+## API
+
+All routes are rate-limited and live under `/api/auth`:
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| POST | `/api/auth/register` | — | Create a user |
+| POST | `/api/auth/login` | — | Sign in, sets auth + `XSRF-TOKEN` cookies |
+| POST | `/api/auth/logout` | required | Sign out |
+| GET | `/api/auth/me` | required | Current user |
+
+There is no seed user — register one to get started.
 
 ## Prerequisites
 
