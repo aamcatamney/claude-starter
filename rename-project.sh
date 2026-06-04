@@ -55,10 +55,14 @@ if [[ "$FORCE" -eq 0 ]]; then
 fi
 
 # Collect files containing placeholders, skipping irrelevant trees
+# .github/workflows is excluded: a GitHub App token cannot push changes to
+# workflow files, so the CI bootstrap must never rewrite them. Workflow files
+# are kept name-agnostic instead.
 mapfile -t FILES < <(find . \
   \( -path ./.git -o -path ./bin -o -path ./obj \
      -o -path ./node_modules -o -path ./ClientApp/node_modules \
      -o -path ./ClientApp/dist -o -path ./ClientApp/.angular \
+     -o -path ./.github/workflows \
      -o -name '*.log' \) -prune \
   -o -type f -print)
 
@@ -116,9 +120,13 @@ find . -type d \( -name bin -o -name obj \) \
   -not -path './ClientApp/node_modules/*' -not -path './node_modules/*' \
   -exec rm -rf {} + 2>/dev/null || true
 
-# Remove git history (skipped under --keep-git so CI can commit the rename)
+# Remove git history (skipped under --keep-git so CI can commit the rename).
+# The template-bootstrap workflow is removed in the same local-only branch:
+# under --keep-git (CI) it must stay, since a GitHub App token cannot delete
+# workflow files — its sentinel guard makes it a no-op on later pushes.
 if [[ "$KEEP_GIT" -eq 0 ]]; then
   rm -rf .git
+  rm -f .github/workflows/template-bootstrap.yml
 fi
 
 # Self-delete

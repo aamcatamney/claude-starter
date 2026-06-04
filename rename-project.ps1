@@ -63,6 +63,9 @@ function Should-Skip($path) {
     foreach ($d in $SkipDirs) {
         if ($path -match "[\\/]$([regex]::Escape($d))([\\/]|$)") { return $true }
     }
+    # A GitHub App token cannot push changes to workflow files, so the CI
+    # bootstrap must never rewrite them. Workflow files are kept name-agnostic.
+    if ($path -match '[\\/]\.github[\\/]workflows[\\/]') { return $true }
     if ($path -like '*.log') { return $true }
     return $false
 }
@@ -160,8 +163,14 @@ Get-ChildItem -Recurse -Directory -Force -Include 'bin', 'obj' |
     Where-Object { $_.FullName -notmatch '[\\/]node_modules[\\/]' } |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-# Remove git history (skipped under -KeepGit so CI can commit the rename)
-if (-not $KeepGit -and (Test-Path .git)) { Remove-Item .git -Recurse -Force }
+# Remove git history (skipped under -KeepGit so CI can commit the rename).
+# The template-bootstrap workflow is removed in the same local-only branch:
+# under -KeepGit (CI) it must stay, since a GitHub App token cannot delete
+# workflow files — its sentinel guard makes it a no-op on later pushes.
+if (-not $KeepGit) {
+    if (Test-Path .git) { Remove-Item .git -Recurse -Force }
+    Remove-Item -Force -ErrorAction SilentlyContinue .github/workflows/template-bootstrap.yml
+}
 
 # Self-delete
 Remove-Item -Force -ErrorAction SilentlyContinue rename-project.sh, rename-project.ps1

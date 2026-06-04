@@ -136,7 +136,9 @@ MIT — see [LICENSE](LICENSE).
 
 ### Option 1 — "Use this template" button (automatic)
 
-Click **Use this template → Create a new repository**. A one-shot `Template bootstrap` GitHub Action runs on the new repo, derives the project name from the repository name (coerced to kebab-case), renames everything, and deletes itself. Watch it under the **Actions** tab; the rename lands as a `chore: bootstrap project from template` commit.
+Click **Use this template → Create a new repository**. A `Template bootstrap` GitHub Action runs on the new repo, derives the project name from the repository name (coerced to kebab-case), renames everything, and commits the result as `chore: bootstrap project from template`. Watch it under the **Actions** tab.
+
+The workflow leaves itself in place (a GitHub token can't delete workflow files), but a sentinel check makes it a no-op on every later push. Delete `.github/workflows/template-bootstrap.yml` by hand once you're set up if you'd like it gone.
 
 If your repository name can't be coerced to a valid kebab-case name (`^[a-z][a-z0-9-]{1,49}$`), the workflow fails with a clear error — rename the repo and re-run it from the Actions tab.
 

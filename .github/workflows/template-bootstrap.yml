@@ -51,8 +51,10 @@ jobs:
           chmod +x rename-project.sh
           ./rename-project.sh "$name" --yes --force --keep-git
 
-          # Remove this bootstrap workflow so it never runs again.
-          rm -f .github/workflows/template-bootstrap.yml
+          # NOTE: we deliberately do NOT delete this workflow or edit any file
+          # under .github/workflows/ here — a GITHUB_TOKEN cannot push workflow
+          # changes. The sentinel check above makes this workflow a no-op once
+          # the rename has run. Delete it by hand if you want it gone.
 
       - name: Commit rename
         run: |
