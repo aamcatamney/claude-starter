@@ -24,14 +24,17 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # No solution filename here so the file survives the template rename
+      # untouched — GITHUB_TOKEN cannot push changes to workflow files. dotnet
+      # resolves the single .sln in the working directory.
       - name: Restore
-        run: dotnet restore claude-starter.sln
+        run: dotnet restore
 
       - name: Build
-        run: dotnet build claude-starter.sln --configuration Release --no-restore
+        run: dotnet build --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test --solution claude-starter.sln --configuration Release --no-build
+        run: dotnet test --configuration Release --no-build
 
   frontend:
     name: Frontend (build)
