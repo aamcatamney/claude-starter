@@ -14,12 +14,21 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    # typescript and @ngrx/* peer-depend on @angular/*, so they must move in
+    # the same PR — split across groups, neither PR can resolve on its own.
     groups:
       angular:
-        patterns: ['@angular/*', '@angular-devkit/*']
+        patterns:
+          ['@angular/*', '@angular-devkit/*', '@ngrx/*', 'typescript', 'zone.js']
       other:
         patterns: ['*']
-        exclude-patterns: ['@angular/*', '@angular-devkit/*']
+        exclude-patterns:
+          ['@angular/*', '@angular-devkit/*', '@ngrx/*', 'typescript', 'zone.js']
+    # A TypeScript major is only ever allowed by an Angular major's
+    # @angular/build peer range, so it is never a standalone bot bump.
+    ignore:
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
