@@ -21,7 +21,7 @@ jobs:
     name: Rename from template
     # Skip the template repo itself; only run in generated copies.
     if: github.repository != 'aamcatamney/claude-starter'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, ARM64]
     steps:
       - uses: actions/checkout@v6
 
