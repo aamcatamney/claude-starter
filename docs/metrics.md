@@ -41,3 +41,5 @@ Rejected redemptions are the one worth an alert. A steady trickle is people clic
 `AppMetrics` is always registered and endpoints always call it. With collection off nothing subscribes to the instruments, which costs approximately nothing, and no endpoint needs a conditional around its measurement.
 
 The consequence for tests: a `MeterListener` can observe the counters directly, without an exporter or a collector, which is how the metrics tests assert on outcomes.
+
+One trap if you write more of them. `MeterListener` subscribes by meter **name**, and every test collection runs its own application with a meter of the same name. Listening by name alone counts other collections' measurements, which passes locally and fails wherever the scheduling differs. Filter on `Meter.Scope` — the application's own `IMeterFactory` — as `CounterRecorder` does.

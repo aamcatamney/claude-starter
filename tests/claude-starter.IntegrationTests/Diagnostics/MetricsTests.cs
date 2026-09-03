@@ -18,11 +18,16 @@ internal sealed class CounterRecorder : IDisposable
     private readonly List<(string Instrument, long Value, string? Outcome, string? Purpose)> _measurements = [];
     private readonly object _gate = new();
 
-    public CounterRecorder(string meterName)
+    /// <param name="scope">
+    /// The application's own IMeterFactory. Collections run in parallel and
+    /// every one of them creates a meter with the same name, so listening by
+    /// name alone counts other collections' sign-ins too.
+    /// </param>
+    public CounterRecorder(string meterName, object scope)
     {
         _listener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == meterName)
+            if (instrument.Meter.Name == meterName && ReferenceEquals(instrument.Meter.Scope, scope))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
@@ -66,11 +71,14 @@ public sealed class MetricsTests : IntegrationTestBase
 {
     public MetricsTests(DatabaseFixture fixture) : base(fixture) { }
 
+    private object MeterScope() =>
+        Fixture.Factory.Services.GetRequiredService<IMeterFactory>();
+
     [Fact]
     public async Task SignIn_RecordsOutcomes()
     {
         await Seeder.CreateUserAsync("counted@example.com", "correct-horse-battery");
-        using var recorder = new CounterRecorder(AppMetrics.MeterName);
+        using var recorder = new CounterRecorder(AppMetrics.MeterName, MeterScope());
 
         await Client.PostAsJsonAsync("/api/auth/login", new
         {
@@ -92,7 +100,7 @@ public sealed class MetricsTests : IntegrationTestBase
     [Fact]
     public async Task Registration_RecordsOutcomes()
     {
-        using var recorder = new CounterRecorder(AppMetrics.MeterName);
+        using var recorder = new CounterRecorder(AppMetrics.MeterName, MeterScope());
 
         var payload = new { email = "metered@example.com", password = "correct-horse-battery", displayName = (string?)null };
         (await Client.PostAsJsonAsync("/api/auth/register", payload)).StatusCode.Should().Be(HttpStatusCode.OK);
@@ -105,7 +113,7 @@ public sealed class MetricsTests : IntegrationTestBase
     [Fact]
     public async Task TokenRedemption_RecordsRejections()
     {
-        using var recorder = new CounterRecorder(AppMetrics.MeterName);
+        using var recorder = new CounterRecorder(AppMetrics.MeterName, MeterScope());
 
         var response = await Client.PostAsJsonAsync("/api/auth/verify-email", new { token = "not-a-real-token" });
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
