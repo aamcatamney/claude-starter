@@ -1,3 +1,186 @@
-/* You can add global styles to this file, and also import other style files */
+@import 'tailwindcss';
 
-@import "tailwindcss";
+/*
+ * Design tokens.
+ *
+ * Deliberately neutral: one grey ramp, ink as the only emphasis colour, red
+ * reserved for danger. A project built from this template is expected to give
+ * itself an identity by editing the values here — nothing below this block
+ * names a colour directly.
+ *
+ * Do not switch this to `@theme inline`. That inlines the values into the
+ * generated utilities, and the dark-mode overrides further down stop working.
+ */
+@theme {
+  --color-canvas: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f4f5;
+
+  --color-line: #e4e4e7;
+  --color-line-strong: #d4d4d8;
+
+  --color-ink: #18181b;
+  --color-ink-muted: #52525b;
+  --color-ink-subtle: #a1a1aa;
+  --color-on-ink: #ffffff;
+
+  --color-danger: #b91c1c;
+  --color-danger-surface: #fef2f2;
+  --color-danger-line: #fecaca;
+
+  --radius-control: 0.375rem;
+  --radius-surface: 0.75rem;
+}
+
+/*
+ * Dark mode follows the operating system; there is no toggle. Only token
+ * values change — every rule below is written once and works in both themes.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #09090b;
+    --color-surface: #131316;
+    --color-surface-muted: #1f1f23;
+
+    --color-line: #27272a;
+    --color-line-strong: #3f3f46;
+
+    --color-ink: #fafafa;
+    --color-ink-muted: #a1a1aa;
+    --color-ink-subtle: #71717a;
+    --color-on-ink: #09090b;
+
+    --color-danger: #fca5a5;
+    --color-danger-surface: #1f1315;
+    --color-danger-line: #7f1d1d;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-canvas text-ink;
+  }
+}
+
+/*
+ * Component classes.
+ *
+ * Plain CSS, applied to plain HTML — there is no Angular API here to learn or
+ * maintain. Delete a class and the markup still renders.
+ */
+@layer components {
+  /* Layout */
+  .page-centered {
+    @apply flex min-h-screen items-center justify-center px-4 py-12;
+  }
+
+  .card {
+    @apply rounded-surface border border-line bg-surface p-8 shadow-sm;
+  }
+
+  /* Typography */
+  .page-title {
+    @apply mb-1 text-2xl font-semibold text-ink;
+  }
+
+  .page-subtitle {
+    @apply mb-6 text-sm text-ink-muted;
+  }
+
+  .prose-note {
+    @apply text-sm text-ink-muted;
+  }
+
+  .link {
+    @apply font-medium text-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+  }
+
+  /* Forms */
+  .field {
+    @apply block;
+  }
+
+  .field-label {
+    @apply mb-1 block text-sm font-medium text-ink;
+  }
+
+  .field-label-row {
+    @apply mb-1 flex items-baseline justify-between;
+  }
+
+  .field-label-row .field-label {
+    @apply mb-0;
+  }
+
+  .field-hint {
+    @apply text-xs text-ink-subtle;
+  }
+
+  .field-error {
+    @apply mt-1 text-sm text-danger;
+  }
+
+  .input {
+    @apply block w-full rounded-control border border-line-strong bg-surface px-3 py-2 text-ink shadow-sm;
+    @apply placeholder:text-ink-subtle;
+    @apply focus-visible:border-ink focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ink;
+    @apply aria-invalid:border-danger;
+  }
+
+  .input-with-affix {
+    @apply pr-20;
+  }
+
+  .checkbox {
+    @apply h-4 w-4 rounded-sm border-line-strong text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+  }
+
+  .checkbox-label {
+    @apply flex items-center gap-2 text-sm text-ink;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-control px-3 py-2 text-sm font-medium;
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+    @apply disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply bg-ink text-on-ink shadow-sm hover:not-disabled:opacity-90;
+  }
+
+  .btn-quiet {
+    @apply text-ink-muted hover:not-disabled:bg-surface-muted hover:not-disabled:text-ink;
+  }
+
+  .btn-outline {
+    @apply border border-line-strong bg-surface text-ink shadow-sm hover:not-disabled:bg-surface-muted;
+  }
+
+  .btn-block {
+    @apply w-full;
+  }
+
+  /* Feedback */
+  .alert-danger {
+    @apply mb-4 rounded-control border border-danger-line bg-danger-surface px-3 py-2 text-sm text-danger;
+  }
+
+  /* Chrome */
+  .app-header {
+    @apply border-b border-line bg-surface;
+  }
+
+  .app-header-inner {
+    @apply mx-auto flex max-w-5xl items-center justify-between px-4 py-3;
+  }
+
+  .app-main {
+    @apply mx-auto w-full max-w-5xl flex-1 px-4 py-12;
+  }
+
+  .code-inline {
+    @apply rounded-sm bg-surface-muted px-1 py-0.5 text-sm text-ink;
+  }
+}

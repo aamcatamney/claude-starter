@@ -139,6 +139,17 @@ Requirements on the self-hosted machine:
 
 To go back to GitHub-hosted runners, set `runs-on: ubuntu-latest` in `.github/workflows/*.yml`.
 
+## Frontend styling
+
+`ClientApp/src/styles.css` holds the whole design layer, in two parts:
+
+- **Tokens** — a Tailwind `@theme` block of semantic names (`--color-ink`, `--color-surface`, `--color-line`, `--radius-control`). The palette is deliberately neutral: one grey ramp, ink for emphasis, red only for danger. Give a project its own identity by editing these values; nothing else names a colour. Dark mode is the same tokens redefined under `prefers-color-scheme`, so it needs no per-component work.
+- **Component classes** — `.card`, `.input`, `.field-label`, `.btn` and friends in `@layer components`. Templates use plain HTML with these classes; there is no Angular component API to learn or maintain.
+
+Do not change `@theme` to `@theme inline` — that inlines token values into the generated utilities and the dark-mode overrides stop working.
+
+See [ADR 0001](docs/adr/0001-neutral-token-layer-with-css-component-classes.md) for why classes rather than components.
+
 ## Versioning and releases
 
 Versions are CalVer: **`YYYY.M.PATCH`** — for example `2026.9.0`, then `2026.9.1`. `PATCH` counts releases within the current month and restarts at `0` when the month turns over. The month is deliberately unpadded so the version is still valid semver, which keeps image tags sortable by tooling.
