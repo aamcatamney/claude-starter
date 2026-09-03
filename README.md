@@ -90,6 +90,20 @@ With verification required, registering creates the account and sends a link but
 
 Reset links last an hour, verification links 24 hours, and both work once. Requesting a new one retires the old. Completing a password reset ends every session opened before it.
 
+Spent and expired tokens are deleted by a background sweep, hourly and on startup, once they are 30 days past use or expiry. The delay is deliberate: it keeps "was a reset link ever requested for this account?" answerable, which is the question that follows a suspicious sign-in.
+
+### Upgrading an existing deployment
+
+Two things happen the first time this runs against a database that predates it, neither of which affects a fresh one.
+
+**Everyone is signed out, once.** Cookies issued before this carry no security-stamp claim and are rejected. Nothing is wrong; people sign in again.
+
+**Existing users are `email_verified = false`**, because nobody has confirmed those addresses. That is only a problem if you then turn on `Auth:RequireEmailVerification`, which would hold every existing account at the login gate until each requests a link. To grandfather them instead, decide deliberately and run:
+
+```sql
+UPDATE users SET email_verified = true;
+```
+
 ## Running locally
 
 Start Postgres via Docker Compose:

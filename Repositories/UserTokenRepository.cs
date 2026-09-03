@@ -52,6 +52,21 @@ public sealed class UserTokenRepository : IUserTokenRepository
         return rows > 0;
     }
 
+    public async Task<int> DeleteDeadTokensAsync(TimeSpan retention, CancellationToken ct = default)
+    {
+        using var conn = _factory.Create();
+        // A row is dead once it has been spent or has expired. Retention keeps
+        // it around a while after that, so "was a reset ever requested for this
+        // account?" is still answerable after the fact.
+        return await conn.ExecuteAsync(
+            new CommandDefinition(
+                @"DELETE FROM user_tokens
+                  WHERE (consumed_at IS NOT NULL AND consumed_at < @cutoff)
+                     OR (consumed_at IS NULL AND expires_at < @cutoff)",
+                new { cutoff = DateTime.UtcNow - retention },
+                cancellationToken: ct));
+    }
+
     public async Task InvalidateOutstandingAsync(Guid userId, string purpose, CancellationToken ct = default)
     {
         using var conn = _factory.Create();
