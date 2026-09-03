@@ -19,7 +19,7 @@ jobs:
     # Self-hosted for anything that already has write access (pushes to main,
     # PRs from branches in this repo). PRs from forks are untrusted code and
     # must not run on our own hardware, so they fall back to a GitHub runner.
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted", "linux", "ARM64"]') || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted", "linux", "X64"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -44,7 +44,7 @@ jobs:
     # Self-hosted for anything that already has write access (pushes to main,
     # PRs from branches in this repo). PRs from forks are untrusted code and
     # must not run on our own hardware, so they fall back to a GitHub runner.
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted", "linux", "ARM64"]') || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted", "linux", "X64"]') || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: ClientApp
