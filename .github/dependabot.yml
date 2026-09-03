@@ -30,6 +30,15 @@ updates:
       - dependency-name: typescript
         update-types: ['version-update:semver-major']
 
+  # Screenshot tooling keeps its own manifest so a browser download stays out
+  # of the client install; without an entry here Playwright would never be
+  # updated.
+  - package-ecosystem: npm
+    directory: /scripts/screenshots
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
