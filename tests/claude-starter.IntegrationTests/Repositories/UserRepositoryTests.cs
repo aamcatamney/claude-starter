@@ -5,13 +5,13 @@ using Microsoft.Extensions.Configuration;
 
 namespace claude_starter.IntegrationTests.Repositories;
 
-[Collection(IntegrationTestCollection.Name)]
+[Collection(RepositoryCollection.Name)]
 public sealed class UserRepositoryTests : IAsyncLifetime
 {
-    private readonly PostgresFixture _fixture;
+    private readonly DatabaseFixture _fixture;
     private UserRepository _repo = null!;
 
-    public UserRepositoryTests(PostgresFixture fixture)
+    public UserRepositoryTests(DatabaseFixture fixture)
     {
         _fixture = fixture;
     }

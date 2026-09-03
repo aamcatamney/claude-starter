@@ -5,9 +5,10 @@ using claude_starter.IntegrationTests.Infrastructure;
 
 namespace claude_starter.IntegrationTests.Endpoints;
 
+[Collection(MeCollection.Name)]
 public sealed class MeEndpointTests : IntegrationTestBase
 {
-    public MeEndpointTests(PostgresFixture fixture) : base(fixture) { }
+    public MeEndpointTests(DatabaseFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Me_Unauthenticated_Returns401()

@@ -2,33 +2,28 @@ using System.Net.Http;
 
 namespace claude_starter.IntegrationTests.Infrastructure;
 
-[Collection(IntegrationTestCollection.Name)]
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
-    protected PostgresFixture Fixture { get; }
-    protected TestWebApplicationFactory Factory { get; private set; } = null!;
+    protected DatabaseFixture Fixture { get; }
     protected HttpClient Client { get; private set; } = null!;
-    protected TestDataSeeder Seeder { get; }
+    protected TestDataSeeder Seeder => Fixture.Seeder;
 
-    protected IntegrationTestBase(PostgresFixture fixture)
+    protected IntegrationTestBase(DatabaseFixture fixture)
     {
         Fixture = fixture;
-        Seeder = new TestDataSeeder(fixture.ConnectionString);
     }
 
     public async ValueTask InitializeAsync()
     {
         await Fixture.ResetAsync();
-        Factory = new TestWebApplicationFactory(Fixture.ConnectionString);
-        Client = Factory.CreateClient();
+        // A fresh client per test, so cookies never leak between cases. The
+        // application behind it is shared for the whole collection.
+        Client = Fixture.Factory.CreateClient();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         Client?.Dispose();
-        if (Factory is not null)
-        {
-            await Factory.DisposeAsync();
-        }
+        return ValueTask.CompletedTask;
     }
 }

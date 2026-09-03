@@ -6,9 +6,10 @@ using claude_starter.IntegrationTests.Infrastructure;
 
 namespace claude_starter.IntegrationTests.Endpoints;
 
+[Collection(LogoutCollection.Name)]
 public sealed class LogoutEndpointTests : IntegrationTestBase
 {
-    public LogoutEndpointTests(PostgresFixture fixture) : base(fixture) { }
+    public LogoutEndpointTests(DatabaseFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Logout_Unauthenticated_Returns401()

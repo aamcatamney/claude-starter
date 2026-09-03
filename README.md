@@ -126,6 +126,10 @@ cd ClientApp
 npm test -- --no-watch
 ```
 
+Integration tests start one Postgres container for the whole run. Each test collection creates its own database inside it, migrates it and boots one application against it, so collections run in parallel — see [ADR 0004](docs/adr/0004-integration-tests-share-a-container-and-isolate-by-database.md). A new test class needs its own `[CollectionDefinition]` and a matching `[Collection]` attribute; without the attribute xunit reports "constructor parameters did not have matching fixture data", which does not sound like a missing attribute.
+
+Password hashing cost is configurable as `Auth:BCryptWorkFactor`, defaulting to 12. Tests set 4: at 12 a single hash costs a few hundred milliseconds, and a suite that hashes on nearly every case spends all its time there. Raise the default as hardware gets faster — a unit test pins it at 12 or above so it cannot quietly drop.
+
 ## Continuous integration
 
 Workflows run on a **self-hosted runner** labelled `self-hosted, linux, X64`.
