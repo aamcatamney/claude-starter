@@ -58,9 +58,12 @@ fi
 # .github/workflows is excluded: a GitHub App token cannot push changes to
 # workflow files, so the CI bootstrap must never rewrite them. Workflow files
 # are kept name-agnostic instead.
+# node_modules is matched by name, not by path: dependencies live under
+# ClientApp and under scripts/screenshots, and anything added later would
+# otherwise be walked and grepped file by file.
 mapfile -t FILES < <(find . \
   \( -path ./.git -o -path ./bin -o -path ./obj \
-     -o -path ./node_modules -o -path ./ClientApp/node_modules \
+     -o -name node_modules \
      -o -path ./ClientApp/dist -o -path ./ClientApp/.angular \
      -o -path ./.github/workflows \
      -o -name '*.log' \) -prune \
@@ -122,9 +125,8 @@ rm -rf docs/screenshots
   mv "tests/claude-starter.IntegrationTests" "tests/${NEW}.IntegrationTests"
 
 # Clean build artifacts (old assembly names baked in)
-find . -type d \( -name bin -o -name obj \) \
-  -not -path './ClientApp/node_modules/*' -not -path './node_modules/*' \
-  -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name node_modules -prune \
+  -o -type d \( -name bin -o -name obj \) -exec rm -rf {} + 2>/dev/null || true
 
 # Remove git history (skipped under --keep-git so CI can commit the rename).
 # The template-bootstrap workflow is removed in the same local-only branch:
