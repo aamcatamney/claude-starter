@@ -134,8 +134,17 @@ if (Test-Path README.md) {
         '(?s)<!-- TEMPLATE:START -->.*?<!-- TEMPLATE:END -->\r?\n?',
         ''
     )
+    # The screenshots show the template's own UI under the template's own name.
+    $readme = [regex]::Replace(
+        $readme,
+        '(?s)<!-- SCREENSHOTS:START -->.*?<!-- SCREENSHOTS:END -->\r?\n?',
+        ''
+    )
     [System.IO.File]::WriteAllText((Resolve-Path README.md), $readme, (New-Object System.Text.UTF8Encoding $false))
 }
+
+# Drop the template's own screenshots. A generated project captures its own.
+if (Test-Path docs/screenshots) { Remove-Item -Recurse -Force docs/screenshots }
 
 # Rename files
 $renames = @(

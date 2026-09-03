@@ -21,3 +21,16 @@ When the work touches the frontend or UI — anything under `ClientApp/`, stylin
 
 - `frontend-design` — for visual direction, layout, typography and copy.
 - `angular-developer` — for Angular APIs, patterns and CLI usage. Run `ng build` before claiming the work is done.
+
+# Screenshots
+
+Any page you add, or any page whose appearance you change, gets re-captured before the work is done. The images in `docs/screenshots/` are the only thing in a pull request that shows whether a change works in the dark theme.
+
+Always capture through `scripts/screenshots/`, never by hand — the fixed viewport and seeded data are what make two runs comparable. Apply `scripts/screenshots/seed.sql` first, every time: its links are single-use and a previous run will have spent them. Run the app with `RateLimit__Auth__PermitLimit=10000` while capturing, or the sign-in for the landing shot is rate-limited.
+
+```bash
+psql "$CONNECTION_STRING" -f scripts/screenshots/seed.sql
+npm --prefix scripts/screenshots run capture
+```
+
+Both themes are captured for every page. Commit the PNGs alongside the change that caused them. Full detail in [docs/screenshots.md](docs/screenshots.md).

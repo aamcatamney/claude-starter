@@ -63,6 +63,19 @@ docker compose down      # stop, keep data
 docker compose down -v   # stop and wipe the volume
 ```
 
+## Screenshots
+
+<!-- SCREENSHOTS:START -->
+| | |
+| --- | --- |
+| **Sign in** | **Create account** |
+| ![Sign in](docs/screenshots/login-light.png) | ![Create account](docs/screenshots/register-light.png) |
+| **Reset password** | **Confirm email** |
+| ![Reset password](docs/screenshots/reset-password-light.png) | ![Confirm email](docs/screenshots/verify-email-dark.png) |
+
+Every page is captured in both themes from fixed data — see [docs/screenshots.md](docs/screenshots.md) for the full set and how to regenerate them.
+<!-- SCREENSHOTS:END -->
+
 ## Project structure
 
 ```
@@ -81,6 +94,7 @@ Migrations/
   DbMigrator.cs         DbUp runner, applied on startup
   Scripts/*.sql         Embedded, applied in name order
 ClientApp/              Angular 22 client
+scripts/screenshots/    Seed data and Playwright capture
 tests/
   claude-starter.UnitTests/
   claude-starter.IntegrationTests/
@@ -162,6 +176,7 @@ Create `Migrations/Scripts/NNNN_description.sql` with a zero-padded sequence num
 | --- | --- |
 | [Email verification and password reset](docs/email-and-passwords.md) | Enabling SMTP, what changes when verification is required, upgrading an existing database |
 | [Frontend styling](docs/frontend-styling.md) | The token layer and component classes, and how to brand them |
+| [Screenshots](docs/screenshots.md) | Every page in both themes, and how to regenerate them |
 | [Metrics](docs/metrics.md) | What is measured, and why nothing is exposed over HTTP |
 | [Continuous integration](docs/continuous-integration.md) | The self-hosted runner, and why fork pull requests stay off it |
 | [Versioning and releases](docs/releases.md) | CalVer, what a merge to `main` publishes, and what it does not |

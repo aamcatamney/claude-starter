@@ -96,8 +96,14 @@ done
 # Strip template block from README
 if [[ -f README.md ]]; then
   sed -i.bak '/<!-- TEMPLATE:START -->/,/<!-- TEMPLATE:END -->/d' README.md
+  # The screenshots show the template's own UI under the template's own name.
+  # A generated project starts without them and captures its own.
+  sed -i.bak '/<!-- SCREENSHOTS:START -->/,/<!-- SCREENSHOTS:END -->/d' README.md
   rm -f README.md.bak
 fi
+
+# Drop the template's own screenshots. A generated project captures its own.
+rm -rf docs/screenshots
 
 # Rename files (before dirs, so paths still resolve)
 [[ -f "claude-starter.csproj" ]] && mv "claude-starter.csproj" "${NEW}.csproj"
