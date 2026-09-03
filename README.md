@@ -17,6 +17,7 @@ Everything here is meant to be edited. The palette is neutral so you can brand i
 - Cookie authentication, with Data Protection keys persisted in Postgres
 - BCrypt.Net-Next for password hashing
 - MailKit for SMTP — optional, off by default
+- OpenTelemetry metrics, pushed over OTLP — optional, off by default
 - Angular 22 client in `ClientApp/`, served as static files
 - Deployed as a container
 
@@ -72,6 +73,7 @@ Repositories/           Dapper repositories
 Services/
   Auth/                 Password hashing, email links, token cleanup
   Email/                SMTP and no-op senders, options
+  Diagnostics/          Metrics options and instruments
   DataProtection/       Postgres-backed key storage
 Data/                   Npgsql connection factory, Dapper config
 Models/                 Domain types
@@ -119,6 +121,9 @@ Two behaviours are deliberate and easy to "fix" by accident:
 | `Smtp:FromAddress` / `FromName` | — | Sender |
 | `RateLimit:Auth:PermitLimit` | `10` | Requests per window, per IP, across `/api/auth` |
 | `RateLimit:Auth:WindowSeconds` | `60` | Length of that window |
+| `Metrics:Enabled` | `false` | Collect and push OpenTelemetry metrics |
+| `Metrics:OtlpEndpoint` | `http://localhost:4317` | Collector to push to |
+| `Metrics:ServiceName` | `claude-starter` | Name reported to the collector |
 
 Override any of them with environment variables, doubling the underscore for nesting:
 
@@ -157,6 +162,7 @@ Create `Migrations/Scripts/NNNN_description.sql` with a zero-padded sequence num
 | --- | --- |
 | [Email verification and password reset](docs/email-and-passwords.md) | Enabling SMTP, what changes when verification is required, upgrading an existing database |
 | [Frontend styling](docs/frontend-styling.md) | The token layer and component classes, and how to brand them |
+| [Metrics](docs/metrics.md) | What is measured, and why nothing is exposed over HTTP |
 | [Continuous integration](docs/continuous-integration.md) | The self-hosted runner, and why fork pull requests stay off it |
 | [Versioning and releases](docs/releases.md) | CalVer, what a merge to `main` publishes, and what it does not |
 

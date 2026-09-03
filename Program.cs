@@ -15,7 +15,10 @@ using claude_starter.Migrations;
 using claude_starter.Repositories;
 using claude_starter.Services.Auth;
 using claude_starter.Services.DataProtection;
+using claude_starter.Services.Diagnostics;
 using claude_starter.Services.Email;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +51,26 @@ if (smtpEnabled)
 else
 {
     builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
+}
+
+builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
+builder.Services.AddSingleton<AppMetrics>();
+
+var metrics = builder.Configuration.GetSection(MetricsOptions.SectionName).Get<MetricsOptions>()
+    ?? new MetricsOptions();
+
+if (metrics.Enabled)
+{
+    // Nothing is exposed over HTTP: measurements are pushed to a collector,
+    // so there is no scrape endpoint to leave unprotected.
+    builder.Services
+        .AddOpenTelemetry()
+        .ConfigureResource(resource => resource.AddService(metrics.ServiceName))
+        .WithMetrics(meters => meters
+            .AddAspNetCoreInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter(AppMetrics.MeterName)
+            .AddOtlpExporter(otlp => otlp.Endpoint = new Uri(metrics.OtlpEndpoint)));
 }
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
