@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ProblemDetails } from './user.model';
 
 export type AuthErrorKind =
+  | 'email-not-verified'
   | 'invalid-credentials'
   | 'email-taken'
   | 'validation'
@@ -15,6 +16,7 @@ export interface AuthError {
 }
 
 const messages: Record<AuthErrorKind, string> = {
+  'email-not-verified': 'Confirm your email address before signing in.',
   'invalid-credentials': 'Invalid email or password.',
   'email-taken': 'That email is already registered.',
   validation: 'Please check the details you entered.',
@@ -44,6 +46,13 @@ export function toAuthError(error: unknown, context: 'login' | 'register' | 'me'
       return {
         kind: 'invalid-credentials',
         message: context === 'login' ? messages['invalid-credentials'] : 'Your session has expired. Please sign in again.',
+      };
+    case 403:
+      // The server tags this one so the client can offer to resend rather than
+      // parse a human-readable title.
+      return {
+        kind: problem?.type?.endsWith('email-not-verified') ? 'email-not-verified' : 'unknown',
+        message: problem?.detail ?? messages['email-not-verified'],
       };
     case 409:
       return { kind: 'email-taken', message: messages['email-taken'] };

@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { AuthApi } from '../../core/auth/auth.api';
 import { AuthStore } from '../../core/auth/auth.store';
 
 @Component({
@@ -13,8 +15,21 @@ import { AuthStore } from '../../core/auth/auth.store';
         <h1 id="login-title" class="page-title">Sign in</h1>
         <p class="page-subtitle">Welcome back. Enter your credentials to continue.</p>
 
+        @if (resetDone()) {
+          <div role="status" class="alert-note">
+            Password saved. Sign in with your new password.
+          </div>
+        }
+
         @if (store.error(); as err) {
-          <div role="alert" class="alert-danger">{{ err.message }}</div>
+          <div role="alert" class="alert-danger">
+            {{ err.message }}
+            @if (err.kind === 'email-not-verified') {
+              <button type="button" class="link ml-1" (click)="resendVerification()">
+                {{ resendState() === 'sent' ? 'Link sent' : 'Send a new link' }}
+              </button>
+            }
+          </div>
         }
 
         <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -66,6 +81,10 @@ import { AuthStore } from '../../core/auth/auth.store';
               }
             </div>
 
+            <p class="prose-note">
+              <a routerLink="/forgot-password" class="link">Forgot your password?</a>
+            </p>
+
             <label class="checkbox-label">
               <input type="checkbox" formControlName="rememberMe" class="checkbox" />
               Remember me on this device
@@ -93,7 +112,15 @@ export default class LoginPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly emailInput = viewChild<ElementRef<HTMLInputElement>>('emailInput');
 
+  private readonly api = inject(AuthApi);
+
   protected readonly passwordVisible = signal(false);
+  protected readonly resendState = signal<'idle' | 'sent'>('idle');
+
+  /** Set by reset-password on its way here, so the reader gets told it worked. */
+  protected readonly resetDone = computed(
+    () => this.route.snapshot.queryParamMap.get('reset') === 'done',
+  );
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(12)]],
@@ -108,6 +135,19 @@ export default class LoginPage implements OnInit {
   ngOnInit(): void {
     this.store.clearError();
     queueMicrotask(() => this.emailInput()?.nativeElement.focus());
+  }
+
+  protected async resendVerification(): Promise<void> {
+    const email = this.form.getRawValue().email.trim();
+    if (!email) return;
+
+    try {
+      await firstValueFrom(this.api.resendVerification(email));
+    } catch {
+      // Nothing useful to say: the endpoint answers identically whether or not
+      // the address is known.
+    }
+    this.resendState.set('sent');
   }
 
   protected togglePassword(): void {

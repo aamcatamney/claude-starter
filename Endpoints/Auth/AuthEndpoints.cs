@@ -7,6 +7,13 @@ public static class AuthEndpoints
     public const string RateLimitPolicy = "auth";
     public const string XsrfCookieName = "XSRF-TOKEN";
 
+    /// <summary>
+    /// Claim carrying the user's security stamp. A cookie whose stamp no longer
+    /// matches the stored one is rejected, which is how a password reset ends
+    /// sessions that were opened before it.
+    /// </summary>
+    public const string SecurityStampClaim = "security_stamp";
+
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/auth").RequireRateLimiting(RateLimitPolicy);
@@ -15,6 +22,10 @@ public static class AuthEndpoints
         group.MapLogoutEndpoint();
         group.MapRegisterEndpoint();
         group.MapMeEndpoint();
+        group.MapForgotPasswordEndpoint();
+        group.MapResetPasswordEndpoint();
+        group.MapVerifyEmailEndpoint();
+        group.MapResendVerificationEndpoint();
 
         return app;
     }

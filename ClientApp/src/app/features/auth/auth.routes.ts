@@ -9,6 +9,21 @@ export const AUTH_ROUTES: Routes = [
     loadComponent: () => import('./login.page'),
   },
   {
+    path: 'forgot-password',
+    title: 'Reset password · claude-starter',
+    loadComponent: () => import('./forgot-password.page'),
+  },
+  {
+    path: 'reset-password',
+    title: 'Set a new password · claude-starter',
+    loadComponent: () => import('./reset-password.page'),
+  },
+  {
+    path: 'verify-email',
+    title: 'Confirm your email · claude-starter',
+    loadComponent: () => import('./verify-email.page'),
+  },
+  {
     path: 'register',
     title: 'Create account · claude-starter',
     canActivate: [redirectIfAuthedGuard],

@@ -3,7 +3,7 @@ import { signalStore, withComputed, withMethods, withState } from '@ngrx/signals
 import { firstValueFrom } from 'rxjs';
 import { AuthApi, LoginPayload, RegisterPayload } from './auth.api';
 import { AuthError, toAuthError } from './auth-error';
-import { AuthStatus, AuthenticatedUser } from './user.model';
+import { AuthStatus, AuthenticatedUser, isPendingVerification } from './user.model';
 import { patchState } from '@ngrx/signals';
 
 interface AuthState {
@@ -11,6 +11,8 @@ interface AuthState {
   status: AuthStatus;
   error: AuthError | null;
   pending: boolean;
+  /** Address awaiting confirmation, set when register returns no session. */
+  awaitingVerification: string | null;
 }
 
 const initialState: AuthState = {
@@ -18,6 +20,7 @@ const initialState: AuthState = {
   status: 'unknown',
   error: null,
   pending: false,
+  awaitingVerification: null,
 };
 
 export const AuthStore = signalStore(
@@ -58,8 +61,23 @@ export const AuthStore = signalStore(
     async register(payload: RegisterPayload): Promise<boolean> {
       patchState(store, { pending: true, error: null });
       try {
-        const user = await firstValueFrom(api.register(payload));
-        patchState(store, { user, status: 'authed', error: null, pending: false });
+        const result = await firstValueFrom(api.register(payload));
+
+        // With verification required the server creates the account but issues
+        // no session, so there is no user to hold and the caller shows the
+        // check-your-email step instead.
+        if (isPendingVerification(result)) {
+          patchState(store, {
+            user: null,
+            status: 'anonymous',
+            error: null,
+            pending: false,
+            awaitingVerification: result.email,
+          });
+          return true;
+        }
+
+        patchState(store, { user: result, status: 'authed', error: null, pending: false });
         return true;
       } catch (error) {
         patchState(store, {
