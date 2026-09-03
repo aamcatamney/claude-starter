@@ -7,8 +7,7 @@ namespace claude_starter.IntegrationTests.Infrastructure;
 
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-        .WithImage("postgres:16")
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16")
         .WithDatabase("claude_starter")
         .WithUsername("postgres")
         .WithPassword("postgres")
