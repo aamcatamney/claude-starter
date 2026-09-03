@@ -56,10 +56,18 @@ public static class LoginEndpoint
             ExpiresUtc = request.RememberMe ? DateTimeOffset.UtcNow.AddDays(14) : null,
         };
 
+        var principal = new ClaimsPrincipal(identity);
+
         await http.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identity),
+            principal,
             props);
+
+        // SignInAsync only writes the response cookie; it leaves HttpContext.User
+        // anonymous for the rest of this request. Antiforgery tokens are bound to
+        // the current user, so minting one now would bind it to nobody and every
+        // later authenticated request would reject it.
+        http.User = principal;
 
         AuthEndpoints.IssueXsrfCookie(http, antiforgery);
 
