@@ -63,10 +63,18 @@ public static class RegisterEndpoint
             new Claim(ClaimTypes.Email, email.ToLowerInvariant()),
         }, CookieAuthenticationDefaults.AuthenticationScheme);
 
+        var principal = new ClaimsPrincipal(identity);
+
         await http.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identity),
+            principal,
             new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(14) });
+
+        // SignInAsync only writes the response cookie; it leaves HttpContext.User
+        // anonymous for the rest of this request. Antiforgery tokens are bound to
+        // the current user, so minting one now would bind it to nobody and every
+        // later authenticated request would reject it.
+        http.User = principal;
 
         AuthEndpoints.IssueXsrfCookie(http, antiforgery);
 
