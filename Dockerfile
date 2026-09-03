@@ -14,6 +14,8 @@ RUN npm run build -- --configuration production
 
 # Stage 2: build .NET backend
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS server-build
+# Release workflow passes the CalVer version; local builds get the default.
+ARG VERSION=0.0.0
 WORKDIR /src
 COPY global.json claude-starter.csproj ./
 RUN dotnet restore claude-starter.csproj
@@ -22,7 +24,8 @@ RUN dotnet publish claude-starter.csproj \
     -c Release \
     -o /app/publish \
     --no-restore \
-    /p:UseAppHost=false
+    /p:UseAppHost=false \
+    /p:Version=$VERSION
 
 # Stage 3: runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

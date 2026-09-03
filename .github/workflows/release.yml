@@ -1,12 +1,20 @@
 name: Release
 
+# Every merge to main cuts a CalVer release: YYYY.M.PATCH, where PATCH counts
+# releases within the current month and resets when the month rolls over.
+# The number is derived from the existing git tags, so nothing in the repo has
+# to be kept in sync and no bot commit ever lands on main.
+
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - LICENSE
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # create the tag and the GitHub release
   packages: write
   id-token: write
   attestations: write
@@ -21,12 +29,46 @@ env:
 
 jobs:
   image:
-    name: Build & push image
+    name: Release
     runs-on: [self-hosted, linux, X64]
     outputs:
+      version: ${{ steps.version.outputs.version }}
       digest: ${{ steps.build.outputs.digest }}
     steps:
+      # Tags are the source of truth for the version, so fetch all of them.
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Compute version
+        id: version
+        run: |
+          set -euo pipefail
+
+          series="$(date -u +%Y).$(date -u +%-m)"
+
+          # Highest existing patch for this month, numerically. Empty on the
+          # first release of a month, which starts the series at .0.
+          last=$(git tag --list "v${series}.*" \
+            | sed "s|^v${series}\.||" \
+            | grep -E '^[0-9]+$' \
+            | sort -n \
+            | tail -1 || true)
+
+          if [ -z "$last" ]; then
+            patch=0
+          else
+            patch=$((last + 1))
+          fi
+
+          version="${series}.${patch}"
+          echo "Releasing v${version}"
+          {
+            echo "series=${series}"
+            echo "version=${version}"
+            echo "tag=v${version}"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v4
 
@@ -43,11 +85,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=${{ steps.version.outputs.series }}
+            type=raw,value=latest
             type=sha,prefix=sha-,format=short
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build & push
         id: build
@@ -58,15 +99,48 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: ${{ startsWith(github.ref, 'refs/tags/v') }}
-          sbom: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          provenance: true
+          sbom: true
 
-      - name: Attest build provenance (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+
+      # Creating the release also creates the tag, so it happens last: a failed
+      # build leaves no tag behind and the next run reuses the same number.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$TAG" \
+            -f target_commitish="$GITHUB_SHA" \
+            --jq .body > notes.md
+
+          cat >> notes.md <<EOF
+
+          ## Container image
+
+          \`\`\`
+          docker pull ${REGISTRY}/${IMAGE_NAME}:${VERSION}
+          \`\`\`
+
+          Digest: \`${DIGEST}\`
+          EOF
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --target "$GITHUB_SHA" \
+            --notes-file notes.md

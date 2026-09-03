@@ -139,6 +139,21 @@ Requirements on the self-hosted machine:
 
 To go back to GitHub-hosted runners, set `runs-on: ubuntu-latest` in `.github/workflows/*.yml`.
 
+## Versioning and releases
+
+Versions are CalVer: **`YYYY.M.PATCH`** — for example `2026.9.0`, then `2026.9.1`. `PATCH` counts releases within the current month and restarts at `0` when the month turns over. The month is deliberately unpadded so the version is still valid semver, which keeps image tags sortable by tooling.
+
+Every push to `main` that touches something other than Markdown or `LICENSE` cuts a release. The `Release` workflow:
+
+1. Reads the existing `v*` git tags, takes the highest patch for the current month, and adds one. Nothing in the repo stores the version, so there is no bump commit and nothing to resolve conflicts over.
+2. Builds the image, passing the version as the `VERSION` build arg. The Dockerfile forwards it to `dotnet publish /p:Version=`, so the assembly reports the version it was released as. Local builds default to `0.0.0`.
+3. Pushes to GHCR tagged `<version>`, `<year>.<month>`, `latest`, and `sha-<short>`, with build provenance attested.
+4. Creates the git tag and a GitHub release with auto-generated notes plus the image digest.
+
+The tag is created last, so a failed build leaves no tag behind and the next run reuses the same number.
+
+To cut a release without a merge — a rebuild against a new base image, say — run the workflow manually from the **Actions** tab.
+
 ## Adding a migration
 
 Create `Migrations/Scripts/NNNN_description.sql` (zero-padded sequence). The file is automatically included as an embedded resource. DbUp applies scripts in name order on next startup.
