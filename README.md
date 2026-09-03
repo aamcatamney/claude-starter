@@ -125,7 +125,11 @@ npm test
 
 ## Continuous integration
 
-All workflows run on a **self-hosted runner** labelled `self-hosted, linux, ARM64`. Requirements on that machine:
+Workflows run on a **self-hosted runner** labelled `self-hosted, linux, ARM64`.
+
+One exception: `ci.yml` picks its runner per event. Pushes to `main` and pull requests from branches in this repository — all of which already require write access — go to the self-hosted runner. **Pull requests from forks fall back to `ubuntu-latest`**, because a fork PR is untrusted code and `npm install` and `dotnet test` would execute it on your machine, on a runner that persists between jobs. This is why GitHub advises against self-hosted runners on public repositories. Keep that fallback if the repository is public.
+
+Requirements on the self-hosted machine:
 
 - .NET 10 SDK toolchain fetchable by `actions/setup-dotnet` (linux-arm64) and Node 22 by `actions/setup-node`
 - A running Docker daemon — integration tests use Testcontainers, and the release workflow builds the image
