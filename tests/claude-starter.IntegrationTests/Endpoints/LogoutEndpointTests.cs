@@ -89,8 +89,11 @@ public sealed class LogoutEndpointTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
+    // Logout must not be able to fail silently. A rejected token used to leave
+    // the auth cookie in place while the client cleared its own state, so the
+    // user looked signed out while the session stayed live.
     [Fact]
-    public async Task Logout_AuthenticatedWithoutXsrf_Returns400()
+    public async Task Logout_WithoutXsrf_SignsOutAnyway()
     {
         await Seeder.CreateUserAsync("noxsrf@example.com", "correct-horse-battery");
         var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new
@@ -102,7 +105,51 @@ public sealed class LogoutEndpointTests : IntegrationTestBase
         loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var response = await Client.PostAsync("/api/auth/logout", content: null);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var meResponse = await Client.GetAsync("/api/auth/me");
+        meResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Logout_WithBogusXsrf_SignsOutAnyway()
+    {
+        await Seeder.CreateUserAsync("bogus@example.com", "correct-horse-battery");
+        var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "bogus@example.com",
+            password = "correct-horse-battery",
+            rememberMe = false,
+        });
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+        request.Headers.Add("X-XSRF-TOKEN", "not-a-real-token");
+        var response = await Client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var meResponse = await Client.GetAsync("/api/auth/me");
+        meResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Logout_WithValidXsrf_EndsTheSession()
+    {
+        await Seeder.CreateUserAsync("ends@example.com", "correct-horse-battery");
+        var loginResponse = await Client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "ends@example.com",
+            password = "correct-horse-battery",
+            rememberMe = false,
+        });
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var xsrf = loginResponse.GetSetCookieValue(AuthEndpoints.XsrfCookieName);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+        request.Headers.Add("X-XSRF-TOKEN", xsrf);
+        (await Client.SendAsync(request)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var meResponse = await Client.GetAsync("/api/auth/me");
+        meResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

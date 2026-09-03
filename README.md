@@ -41,7 +41,7 @@ All routes are rate-limited and live under `/api/auth`:
 | --- | --- | --- | --- |
 | POST | `/api/auth/register` | — | Create a user |
 | POST | `/api/auth/login` | — | Sign in, sets auth + `XSRF-TOKEN` cookies |
-| POST | `/api/auth/logout` | required | Sign out |
+| POST | `/api/auth/logout` | required | Sign out — see [ADR 0003](docs/adr/0003-logout-is-not-gated-on-the-antiforgery-token.md) |
 | GET | `/api/auth/me` | required | Current user |
 
 There is no seed user — register one to get started.

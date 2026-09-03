@@ -20,16 +20,25 @@ public static class LogoutEndpoint
     {
         var logger = loggerFactory.CreateLogger("Auth.Logout");
 
+        var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        // Logout is deliberately not gated on the antiforgery token. Rejecting
+        // the request would leave the auth cookie in place while the client
+        // cleared its own state, so the user would look signed out with a live
+        // session behind them. The exposure that buys back is a forced logout
+        // via CSRF: an annoyance, not a compromise. A failure is logged so a
+        // burst of them is still visible.
         try
         {
             await antiforgery.ValidateRequestAsync(http);
         }
-        catch (AntiforgeryValidationException)
+        catch (AntiforgeryValidationException ex)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid antiforgery token");
+            logger.LogWarning(
+                "Logout antiforgery validation failed; signing out regardless. UserId={UserId} Reason={Reason}",
+                userId,
+                ex.Message);
         }
-
-        var userId = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
