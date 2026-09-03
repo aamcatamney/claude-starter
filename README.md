@@ -123,6 +123,22 @@ cd ClientApp
 npm test
 ```
 
+## Continuous integration
+
+Workflows run on a **self-hosted runner** labelled `self-hosted, linux, X64`.
+
+One exception: `ci.yml` picks its runner per event. Pushes to `main` and pull requests from branches in this repository — all of which already require write access — go to the self-hosted runner. **Pull requests from forks fall back to `ubuntu-latest`**, because a fork PR is untrusted code and `npm install` and `dotnet test` would execute it on your machine, on a runner that persists between jobs. This is why GitHub advises against self-hosted runners on public repositories. Keep that fallback if the repository is public.
+
+Requirements on the self-hosted machine:
+
+- .NET 10 SDK toolchain fetchable by `actions/setup-dotnet` (linux-x64) and Node 22 by `actions/setup-node`
+- A running Docker daemon — integration tests use Testcontainers, and the release workflow builds the image
+- The release image targets `linux/amd64`, which is native on this runner; no QEMU emulation is involved. Targeting another architecture would need `docker/setup-qemu-action` adding back.
+
+`template-bootstrap.yml` targets the same runner, which only works while generated repos can reach it — see [Using this template](#option-1--use-this-template-button-automatic).
+
+To go back to GitHub-hosted runners, set `runs-on: ubuntu-latest` in `.github/workflows/*.yml`.
+
 ## Adding a migration
 
 Create `Migrations/Scripts/NNNN_description.sql` (zero-padded sequence). The file is automatically included as an embedded resource. DbUp applies scripts in name order on next startup.
@@ -141,6 +157,8 @@ Click **Use this template → Create a new repository**. A `Template bootstrap` 
 The workflow leaves itself in place (a GitHub token can't delete workflow files), but a sentinel check makes it a no-op on every later push. Delete `.github/workflows/template-bootstrap.yml` by hand once you're set up if you'd like it gone.
 
 If your repository name can't be coerced to a valid kebab-case name (`^[a-z][a-z0-9-]{1,49}$`), the workflow fails with a clear error — rename the repo and re-run it from the Actions tab.
+
+> **Runner requirement.** This workflow runs on `[self-hosted, linux, X64]`, like the rest of CI. The generated repository must have a runner with those labels available to it — an org-level runner shared with the new repo, or one registered against it directly. Without one the bootstrap job queues indefinitely and the rename never happens. If the new repo lives outside that runner's scope, change `runs-on` in `.github/workflows/template-bootstrap.yml` to `ubuntu-latest` (or run `./rename-project.sh` locally instead, Option 2 below).
 
 ### Option 2 — clone and rename locally
 
