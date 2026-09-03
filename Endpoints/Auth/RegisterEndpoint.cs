@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
 using claude_starter.Repositories;
 using claude_starter.Services.Auth;
+using claude_starter.Services.Diagnostics;
 using claude_starter.Services.Email;
 
 namespace claude_starter.Endpoints.Auth;
@@ -37,6 +38,7 @@ public static class RegisterEndpoint
         IAntiforgery antiforgery,
         EmailLinkService links,
         IOptions<AuthOptions> authOptions,
+        AppMetrics metrics,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -45,11 +47,13 @@ public static class RegisterEndpoint
 
         if (email.Length == 0 || email.Length > MaxEmailLength || !MailAddress.TryCreate(email, out _))
         {
+            metrics.Registration("invalid");
             return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid email");
         }
 
         if (string.IsNullOrEmpty(request.Password) || request.Password.Length < MinPasswordLength)
         {
+            metrics.Registration("invalid");
             return Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Invalid password",
@@ -59,6 +63,7 @@ public static class RegisterEndpoint
         var existing = await users.GetByEmailAsync(email, ct);
         if (existing is not null)
         {
+            metrics.Registration("duplicate");
             return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Email already registered");
         }
 
@@ -76,6 +81,7 @@ public static class RegisterEndpoint
             }
 
             logger.LogInformation("Register pending verification. UserId={UserId}", id);
+            metrics.Registration("pending-verification");
 
             // No session: login refuses unverified users, so handing one out
             // here would let registration do what logging in cannot.
@@ -105,6 +111,7 @@ public static class RegisterEndpoint
         AuthEndpoints.IssueXsrfCookie(http, antiforgery);
 
         logger.LogInformation("Register success. UserId={UserId}", id);
+        metrics.Registration("created");
 
         return Results.Ok(new LoginEndpoint.UserResponse(id, email.ToLowerInvariant(), displayName));
     }

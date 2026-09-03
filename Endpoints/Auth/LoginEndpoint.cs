@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
 using claude_starter.Repositories;
 using claude_starter.Services.Auth;
+using claude_starter.Services.Diagnostics;
 using claude_starter.Services.Email;
 
 namespace claude_starter.Endpoints.Auth;
@@ -33,6 +34,7 @@ public static class LoginEndpoint
         IPasswordHasher hasher,
         IAntiforgery antiforgery,
         IOptions<AuthOptions> authOptions,
+        AppMetrics metrics,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -43,6 +45,7 @@ public static class LoginEndpoint
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(request.Password))
         {
             logger.LogWarning("Login failed (missing fields). Email={Email} IP={Ip}", email, ip);
+            metrics.SignIn("invalid-credentials");
             return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid credentials");
         }
 
@@ -50,6 +53,7 @@ public static class LoginEndpoint
         if (user is null || !user.IsActive || !hasher.Verify(request.Password, user.PasswordHash))
         {
             logger.LogWarning("Login failed. Email={Email} IP={Ip}", email, ip);
+            metrics.SignIn(user is { IsActive: false } ? "inactive" : "invalid-credentials");
             return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid credentials");
         }
 
@@ -58,6 +62,7 @@ public static class LoginEndpoint
         if (authOptions.Value.RequireEmailVerification && !user.EmailVerified)
         {
             logger.LogInformation("Login blocked, email not verified. UserId={UserId}", user.Id);
+            metrics.SignIn("unverified");
             return Results.Problem(
                 statusCode: StatusCodes.Status403Forbidden,
                 title: "Email not verified",
@@ -94,6 +99,7 @@ public static class LoginEndpoint
         AuthEndpoints.IssueXsrfCookie(http, antiforgery);
 
         logger.LogInformation("Login success. UserId={UserId}", user.Id);
+        metrics.SignIn("success");
 
         return Results.Ok(new UserResponse(user.Id, user.Email, user.DisplayName));
     }

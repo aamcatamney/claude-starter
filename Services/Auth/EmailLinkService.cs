@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using claude_starter.Models;
 using claude_starter.Repositories;
+using claude_starter.Services.Diagnostics;
 using claude_starter.Services.Email;
 
 namespace claude_starter.Services.Auth;
@@ -18,12 +19,18 @@ public sealed class EmailLinkService
 
     private readonly IUserTokenRepository _tokens;
     private readonly IEmailSender _email;
+    private readonly AppMetrics _metrics;
     private readonly AuthOptions _auth;
 
-    public EmailLinkService(IUserTokenRepository tokens, IEmailSender email, IOptions<AuthOptions> auth)
+    public EmailLinkService(
+        IUserTokenRepository tokens,
+        IEmailSender email,
+        AppMetrics metrics,
+        IOptions<AuthOptions> auth)
     {
         _tokens = tokens;
         _email = email;
+        _metrics = metrics;
         _auth = auth.Value;
     }
 
@@ -70,6 +77,8 @@ public sealed class EmailLinkService
              If you did not create an account, ignore this message.
              """,
             ct);
+
+        _metrics.EmailSent(TokenPurpose.EmailVerification);
     }
 
     public async Task SendPasswordResetAsync(User user, HttpRequest request, CancellationToken ct = default)
@@ -100,6 +109,8 @@ public sealed class EmailLinkService
              your password has not changed.
              """,
             ct);
+
+        _metrics.EmailSent(TokenPurpose.PasswordReset);
     }
 
     /// <summary>
@@ -108,13 +119,23 @@ public sealed class EmailLinkService
     /// </summary>
     public async Task<Guid?> RedeemAsync(string purpose, string token, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(token)) return null;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            _metrics.TokenRedemption(purpose, succeeded: false);
+            return null;
+        }
 
         var stored = await _tokens.GetUsableAsync(purpose, HashToken(token), ct);
-        if (stored is null) return null;
+        if (stored is null)
+        {
+            _metrics.TokenRedemption(purpose, succeeded: false);
+            return null;
+        }
 
         // Losing this race means another request redeemed the same link first.
-        return await _tokens.ConsumeAsync(stored.Id, ct) ? stored.UserId : null;
+        var consumed = await _tokens.ConsumeAsync(stored.Id, ct);
+        _metrics.TokenRedemption(purpose, consumed);
+        return consumed ? stored.UserId : null;
     }
 
     private string BaseUrl(HttpRequest request) =>

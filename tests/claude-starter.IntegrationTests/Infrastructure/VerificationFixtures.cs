@@ -31,3 +31,16 @@ public sealed class VerificationWithoutSmtpFixture : DatabaseFixture
             ["Auth:RequireEmailVerification"] = "true",
         };
 }
+
+/// <summary>Metrics switched on, pointed at a collector that need not exist.</summary>
+public sealed class MetricsEnabledFixture : DatabaseFixture
+{
+    public MetricsEnabledFixture(ContainerFixture container) : base(container) { }
+
+    protected override IReadOnlyDictionary<string, string?> Settings { get; } =
+        new Dictionary<string, string?>
+        {
+            ["Metrics:Enabled"] = "true",
+            ["Metrics:OtlpEndpoint"] = "http://localhost:4317",
+        };
+}

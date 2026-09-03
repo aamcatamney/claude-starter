@@ -64,3 +64,15 @@ public sealed class TokenRepositoryCollection : ICollectionFixture<DatabaseFixtu
 {
     public const string Name = "token-repository";
 }
+
+[CollectionDefinition(Name)]
+public sealed class MetricsCollection : ICollectionFixture<DatabaseFixture>
+{
+    public const string Name = "metrics";
+}
+
+[CollectionDefinition(Name)]
+public sealed class MetricsEnabledCollection : ICollectionFixture<MetricsEnabledFixture>
+{
+    public const string Name = "metrics-enabled";
+}
