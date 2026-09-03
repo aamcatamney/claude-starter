@@ -16,6 +16,9 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseSetting("ConnectionStrings:Postgres", _connectionString);
         builder.UseSetting("RateLimit:Auth:PermitLimit", "10000");
+        // Production hashes at work factor 12, which costs ~0.4s per call. The
+        // suite hashes constantly and is not testing the cost function.
+        builder.UseSetting("Auth:BCryptWorkFactor", TestDataSeeder.WorkFactor.ToString());
         builder.UseEnvironment("Development");
     }
 }

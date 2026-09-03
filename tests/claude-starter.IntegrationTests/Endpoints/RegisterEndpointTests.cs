@@ -5,9 +5,10 @@ using claude_starter.IntegrationTests.Infrastructure;
 
 namespace claude_starter.IntegrationTests.Endpoints;
 
+[Collection(RegisterCollection.Name)]
 public sealed class RegisterEndpointTests : IntegrationTestBase
 {
-    public RegisterEndpointTests(PostgresFixture fixture) : base(fixture) { }
+    public RegisterEndpointTests(DatabaseFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Register_ValidRequest_Returns200_AndIssuesCookies()

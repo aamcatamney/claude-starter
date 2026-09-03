@@ -7,8 +7,11 @@ namespace claude_starter.IntegrationTests.Infrastructure;
 
 public sealed class TestDataSeeder
 {
+    /// <summary>Lowest work factor BCrypt accepts, and all a test needs.</summary>
+    public const int WorkFactor = 4;
+
     private readonly string _connectionString;
-    private readonly IPasswordHasher _hasher = new BCryptPasswordHasher();
+    private readonly IPasswordHasher _hasher = new BCryptPasswordHasher(WorkFactor);
 
     public TestDataSeeder(string connectionString)
     {

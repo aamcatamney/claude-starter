@@ -5,12 +5,12 @@ using Npgsql;
 
 namespace claude_starter.IntegrationTests.Migrations;
 
-[Collection(IntegrationTestCollection.Name)]
+[Collection(MigrationCollection.Name)]
 public sealed class DbMigratorTests
 {
-    private readonly PostgresFixture _fixture;
+    private readonly DatabaseFixture _fixture;
 
-    public DbMigratorTests(PostgresFixture fixture)
+    public DbMigratorTests(DatabaseFixture fixture)
     {
         _fixture = fixture;
     }

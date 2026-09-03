@@ -5,9 +5,10 @@ using claude_starter.IntegrationTests.Infrastructure;
 
 namespace claude_starter.IntegrationTests.Endpoints;
 
+[Collection(LoginCollection.Name)]
 public sealed class LoginEndpointTests : IntegrationTestBase
 {
-    public LoginEndpointTests(PostgresFixture fixture) : base(fixture) { }
+    public LoginEndpointTests(DatabaseFixture fixture) : base(fixture) { }
 
     [Fact]
     public async Task Login_ValidCredentials_Returns200_AndIssuesCookies()
