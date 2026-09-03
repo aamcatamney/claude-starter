@@ -40,3 +40,21 @@ public sealed class MigrationCollection : ICollectionFixture<DatabaseFixture>
 {
     public const string Name = "migrations";
 }
+
+[CollectionDefinition(Name)]
+public sealed class PasswordResetCollection : ICollectionFixture<DatabaseFixture>
+{
+    public const string Name = "password-reset";
+}
+
+[CollectionDefinition(Name)]
+public sealed class VerificationRequiredCollection : ICollectionFixture<VerificationRequiredFixture>
+{
+    public const string Name = "verification-required";
+}
+
+[CollectionDefinition(Name)]
+public sealed class VerificationWithoutSmtpCollection : ICollectionFixture<VerificationWithoutSmtpFixture>
+{
+    public const string Name = "verification-without-smtp";
+}

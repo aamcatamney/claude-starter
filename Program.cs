@@ -15,12 +15,39 @@ using claude_starter.Migrations;
 using claude_starter.Repositories;
 using claude_starter.Services.Auth;
 using claude_starter.Services.DataProtection;
+using claude_starter.Services.Email;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
 builder.Services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserTokenRepository, UserTokenRepository>();
+builder.Services.AddScoped<EmailLinkService>();
+
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+
+var smtpEnabled = builder.Configuration.GetValue<bool>($"{SmtpOptions.SectionName}:Enabled");
+
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.PostConfigure<AuthOptions>(options =>
+{
+    // Requiring a verification that cannot be sent would lock every account
+    // out permanently, so SMTP being off wins over the setting being on.
+    if (!smtpEnabled)
+    {
+        options.RequireEmailVerification = false;
+    }
+});
+
+if (smtpEnabled)
+{
+    builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+}
+else
+{
+    builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
+}
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("ConnectionStrings:Postgres missing");
@@ -83,6 +110,16 @@ builder.Services
             var users = ctx.HttpContext.RequestServices.GetRequiredService<IUserRepository>();
             var user = await users.GetByIdAsync(id, ctx.HttpContext.RequestAborted);
             if (user is null || !user.IsActive)
+            {
+                ctx.RejectPrincipal();
+                await ctx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
+            }
+
+            // A password reset rotates the stamp, so cookies minted before it
+            // no longer match and stop being accepted here.
+            var stamp = ctx.Principal?.FindFirstValue(AuthEndpoints.SecurityStampClaim);
+            if (!Guid.TryParse(stamp, out var presented) || presented != user.SecurityStamp)
             {
                 ctx.RejectPrincipal();
                 await ctx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

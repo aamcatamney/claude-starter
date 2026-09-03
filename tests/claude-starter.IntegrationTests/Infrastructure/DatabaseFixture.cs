@@ -19,6 +19,13 @@ public class DatabaseFixture : IAsyncLifetime
         _container = container;
     }
 
+    /// <summary>
+    /// Extra configuration for this collection's application. Override to test
+    /// a different posture, such as email verification being required.
+    /// </summary>
+    protected virtual IReadOnlyDictionary<string, string?> Settings { get; } =
+        new Dictionary<string, string?>();
+
     public string ConnectionString { get; private set; } = null!;
     public TestWebApplicationFactory Factory { get; private set; } = null!;
     public TestDataSeeder Seeder { get; private set; } = null!;
@@ -44,7 +51,7 @@ public class DatabaseFixture : IAsyncLifetime
             });
         }
 
-        Factory = new TestWebApplicationFactory(ConnectionString);
+        Factory = new TestWebApplicationFactory(ConnectionString, Settings);
         Seeder = new TestDataSeeder(ConnectionString);
     }
 

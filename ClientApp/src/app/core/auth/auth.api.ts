@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuthenticatedUser } from './user.model';
+import { AuthenticatedUser, PendingVerification } from './user.model';
 
 export interface LoginPayload {
   email: string;
@@ -28,8 +28,24 @@ export class AuthApi {
     return this.http.post<AuthenticatedUser>(`${this.base}/login`, payload);
   }
 
-  register(payload: RegisterPayload): Observable<AuthenticatedUser> {
-    return this.http.post<AuthenticatedUser>(`${this.base}/register`, payload);
+  register(payload: RegisterPayload): Observable<AuthenticatedUser | PendingVerification> {
+    return this.http.post<AuthenticatedUser | PendingVerification>(`${this.base}/register`, payload);
+  }
+
+  forgotPassword(email: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/forgot-password`, { email });
+  }
+
+  resetPassword(token: string, password: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/reset-password`, { token, password });
+  }
+
+  verifyEmail(token: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/verify-email`, { token });
+  }
+
+  resendVerification(email: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/resend-verification`, { email });
   }
 
   logout(): Observable<void> {

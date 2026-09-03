@@ -10,6 +10,16 @@ import { AuthStore } from '../../core/auth/auth.store';
   template: `
     <main class="page-centered">
       <section class="card w-full max-w-md" aria-labelledby="register-title">
+        @if (store.awaitingVerification(); as address) {
+          <h1 id="register-title" class="page-title">Check your email</h1>
+          <p class="page-subtitle">
+            We've sent a confirmation link to {{ address }}. Open it to finish setting up your
+            account — the link works once and expires in 24 hours.
+          </p>
+          <p class="prose-note">
+            <a routerLink="/login" class="link">Back to sign in</a>
+          </p>
+        } @else {
         <h1 id="register-title" class="page-title">Create account</h1>
         <p class="page-subtitle">Set up a new account to get started.</p>
 
@@ -89,6 +99,7 @@ import { AuthStore } from '../../core/auth/auth.store';
           Already have an account?
           <a routerLink="/login" [queryParams]="passThroughReturnUrl()" class="link">Sign in</a>.
         </p>
+        }
       </section>
     </main>
   `,
@@ -133,12 +144,15 @@ export default class RegisterPage implements OnInit {
       return;
     }
     const raw = this.form.getRawValue();
+    // With verification required the server issues no session, so the store
+    // reports success without a user and this page shows the next step instead
+    // of navigating into the app.
     const ok = await this.store.register({
       email: raw.email,
       password: raw.password,
       displayName: raw.displayName.trim() === '' ? null : raw.displayName.trim(),
     });
-    if (ok) {
+    if (ok && !this.store.awaitingVerification()) {
       const target = safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
       this.router.navigateByUrl(target);
     }

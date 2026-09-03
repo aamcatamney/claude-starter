@@ -3,8 +3,10 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.Options;
 using claude_starter.Repositories;
 using claude_starter.Services.Auth;
+using claude_starter.Services.Email;
 
 namespace claude_starter.Endpoints.Auth;
 
@@ -14,6 +16,12 @@ public static class RegisterEndpoint
     private const int MaxEmailLength = 254;
 
     public sealed record RegisterRequest(string Email, string Password, string? DisplayName);
+
+    /// <summary>Returned instead of a session when verification is required.</summary>
+    public sealed record PendingVerificationResponse(string Email)
+    {
+        public bool VerificationRequired => true;
+    }
 
     public static IEndpointRouteBuilder MapRegisterEndpoint(this IEndpointRouteBuilder app)
     {
@@ -27,6 +35,8 @@ public static class RegisterEndpoint
         IUserRepository users,
         IPasswordHasher hasher,
         IAntiforgery antiforgery,
+        EmailLinkService links,
+        IOptions<AuthOptions> authOptions,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -56,11 +66,27 @@ public static class RegisterEndpoint
         var displayName = string.IsNullOrWhiteSpace(request.DisplayName) ? null : request.DisplayName!.Trim();
 
         var id = await users.CreateAsync(email, hash, displayName, ct);
+        var created = await users.GetByIdAsync(id, ct);
+
+        if (authOptions.Value.RequireEmailVerification)
+        {
+            if (created is not null)
+            {
+                await links.SendVerificationAsync(created, http.Request, ct);
+            }
+
+            logger.LogInformation("Register pending verification. UserId={UserId}", id);
+
+            // No session: login refuses unverified users, so handing one out
+            // here would let registration do what logging in cannot.
+            return Results.Accepted(value: new PendingVerificationResponse(email.ToLowerInvariant()));
+        }
 
         var identity = new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, id.ToString()),
             new Claim(ClaimTypes.Email, email.ToLowerInvariant()),
+            new Claim(AuthEndpoints.SecurityStampClaim, (created?.SecurityStamp ?? Guid.Empty).ToString()),
         }, CookieAuthenticationDefaults.AuthenticationScheme);
 
         var principal = new ClaimsPrincipal(identity);

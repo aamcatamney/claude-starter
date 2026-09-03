@@ -14,6 +14,7 @@
 - Dapper + Npgsql (repository pattern, no EF Core)
 - DbUp for migrations (embedded `Migrations/Scripts/*.sql`)
 - BCrypt.Net-Next for password hashing
+- MailKit for SMTP (optional; off by default)
 - Cookie authentication (ASP.NET Core), Data Protection keys persisted in Postgres
 - Angular 22 client in `ClientApp/`, served as static files
 
@@ -24,7 +25,7 @@ Program.cs              App wiring, auth, rate limiting, SPA fallback
 Endpoints/              Minimal API endpoints — one endpoint per file
   Auth/                 /api/auth login, logout, register, me
 Repositories/           Dapper repositories (no EF Core)
-Services/               BCrypt password hashing, Postgres-backed Data Protection
+Services/               BCrypt password hashing, email links, SMTP, Data Protection
 Data/                   Npgsql connection factory + Dapper config
 Models/                 Domain types
 Migrations/
@@ -43,8 +44,14 @@ All routes are rate-limited and live under `/api/auth`:
 | POST | `/api/auth/login` | — | Sign in, sets auth + `XSRF-TOKEN` cookies |
 | POST | `/api/auth/logout` | required | Sign out — see [ADR 0003](docs/adr/0003-logout-is-not-gated-on-the-antiforgery-token.md) |
 | GET | `/api/auth/me` | required | Current user |
+| POST | `/api/auth/forgot-password` | — | Send a reset link; always 202 |
+| POST | `/api/auth/reset-password` | — | Set a new password from a link |
+| POST | `/api/auth/verify-email` | — | Confirm an address from a link |
+| POST | `/api/auth/resend-verification` | — | Send another link; always 202 |
 
 There is no seed user — register one to get started.
+
+`forgot-password` and `resend-verification` answer 202 whether or not the address exists. Anything else would make them a way to test which addresses have accounts.
 
 ## Prerequisites
 
@@ -59,6 +66,29 @@ Connection string is read from `ConnectionStrings:Postgres`. Default in `appsett
 ```
 ConnectionStrings__Postgres=Host=db;Port=5432;Database=claude_starter;Username=...;Password=...
 ```
+
+## Email, verification and password reset
+
+Both flows mail a single-use link. SMTP is **off by default**, and with it off nothing is sent — in Development the message is written to the log instead, so the flows can be exercised without a mail server. It is never logged in any other environment: those bodies contain working links.
+
+```jsonc
+"Smtp": {
+  "Enabled": false,        // off: nothing is sent
+  "Host": "", "Port": 587, "UseStartTls": true,
+  "Username": "", "Password": "",
+  "FromAddress": "", "FromName": ""
+},
+"Auth": {
+  "RequireEmailVerification": false,  // forced false while Smtp:Enabled is false
+  "AppBaseUrl": ""                    // origin for links; defaults to the request's own
+}
+```
+
+**`RequireEmailVerification` is ignored while SMTP is disabled**, whatever it is set to. Requiring a confirmation that nothing can send would leave every account — including yours — waiting forever with no way back in. See [ADR 0005](docs/adr/0005-email-links-are-hashed-single-use-and-cannot-outrun-smtp.md).
+
+With verification required, registering creates the account and sends a link but issues **no session**, and signing in before confirming returns 403 rather than 401: the credentials were right, the account is not ready yet.
+
+Reset links last an hour, verification links 24 hours, and both work once. Requesting a new one retires the old. Completing a password reset ends every session opened before it.
 
 ## Running locally
 
