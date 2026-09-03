@@ -40,7 +40,7 @@ jobs:
         run: dotnet test --configuration Release --no-build
 
   frontend:
-    name: Frontend (build)
+    name: Frontend (build + test)
     # Self-hosted for anything that already has write access (pushes to main,
     # PRs from branches in this repo). PRs from forks are untrusted code and
     # must not run on our own hardware, so they fall back to a GitHub runner.
@@ -55,10 +55,15 @@ jobs:
         with:
           node-version: '22'
 
+      # npm ci (not npm install) so the committed lockfile is the source of
+      # truth and drifts fail loudly. The lockfile must be generated in a clean
+      # tree so npm records every platform's optional native binary — an
+      # incremental install records only the host's, which breaks Linux CI.
       - name: Install
-        run: |
-          rm -f package-lock.json
-          npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Build
         run: npm run build -- --configuration production
+
+      - name: Test
+        run: npm test -- --no-watch
