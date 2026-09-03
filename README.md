@@ -128,32 +128,9 @@ Smtp__Enabled=true
 Auth__RequireEmailVerification=true
 ```
 
+Email verification and password reset have their own page: [docs/email-and-passwords.md](docs/email-and-passwords.md).
+
 `Auth:BCryptWorkFactor` is worth understanding before you touch it: a hash at 12 costs a few hundred milliseconds by design, which is what makes guessing expensive. A unit test pins the default at 12 or above so it cannot quietly drop.
-
-## Email verification and password reset
-
-Both flows mail a single-use link. With `Smtp:Enabled` false nothing is sent — in Development the message is written to the log instead, so you can exercise the flows without a mail server. It is never logged in any other environment, because those bodies contain working links.
-
-**`Auth:RequireEmailVerification` is ignored while SMTP is disabled**, whatever it is set to. Requiring a confirmation that nothing can send would leave every account — including yours — waiting forever with no way back in. See [ADR 0005](docs/adr/0005-email-links-are-hashed-single-use-and-cannot-outrun-smtp.md).
-
-With verification required:
-
-- Registering creates the account and sends a link but issues **no session**.
-- Signing in before confirming returns **403**, not 401 — the credentials were right, the account is not ready — carrying a problem type the client uses to offer a resend.
-
-Reset links last an hour, confirmation links 24 hours, and each works once; requesting a new one retires the old. Completing a reset ends every session opened before it. Spent and expired tokens are deleted by a background sweep, hourly and at startup, once they are 30 days past use — long enough to still answer "was a reset ever requested for this account?"
-
-### Upgrading an existing deployment
-
-Two things happen the first time this runs against a database that predates these features. Neither affects a fresh one.
-
-**Everyone is signed out, once.** Cookies issued earlier carry no security-stamp claim and are rejected. Nothing is wrong; people sign in again.
-
-**Existing users are `email_verified = false`**, because nobody has confirmed those addresses. That only bites if you then enable `Auth:RequireEmailVerification`, which would hold every existing account at the login gate. To grandfather them, decide deliberately and run:
-
-```sql
-UPDATE users SET email_verified = true;
-```
 
 ## Tests
 
@@ -174,49 +151,16 @@ Tests hash at work factor 4. At the production 12, a suite that hashes on nearly
 
 Create `Migrations/Scripts/NNNN_description.sql` with a zero-padded sequence number. It is picked up as an embedded resource automatically, and DbUp applies it in name order on the next startup.
 
-## Continuous integration
+## Documentation
 
-Workflows run on a **self-hosted runner** labelled `self-hosted, linux, X64`.
+| | |
+| --- | --- |
+| [Email verification and password reset](docs/email-and-passwords.md) | Enabling SMTP, what changes when verification is required, upgrading an existing database |
+| [Frontend styling](docs/frontend-styling.md) | The token layer and component classes, and how to brand them |
+| [Continuous integration](docs/continuous-integration.md) | The self-hosted runner, and why fork pull requests stay off it |
+| [Versioning and releases](docs/releases.md) | CalVer, what a merge to `main` publishes, and what it does not |
 
-`ci.yml` picks its runner per event. Pushes to `main` and pull requests from branches in this repository — all of which already require write access — use the self-hosted runner. **Pull requests from forks fall back to `ubuntu-latest`**: a fork PR is untrusted code, and `npm ci` and `dotnet test` would run it on your own machine, on a runner that persists between jobs. Keep that fallback while the repository is public.
-
-The self-hosted machine needs:
-
-- A .NET 10 SDK reachable by `actions/setup-dotnet` (linux-x64) and Node by `actions/setup-node`
-- A running Docker daemon, for Testcontainers and for the release image
-- Nothing else — the image targets `linux/amd64`, which is native here, so no QEMU is involved
-
-`template-bootstrap.yml` targets the same runner, which only works while generated repositories can reach it — see [Using this template](#option-1--use-this-template-button-automatic).
-
-To return to GitHub-hosted runners, set `runs-on: ubuntu-latest` across `.github/workflows/*.yml`.
-
-## Versioning and releases
-
-Versions are CalVer: **`YYYY.M.PATCH`** — `2026.9.0`, then `2026.9.1`. The patch counts releases within the month and restarts when the month turns over. The month is unpadded on purpose, which keeps the version valid semver and therefore sortable by tooling.
-
-Every push to `main` touching anything other than Markdown or `LICENSE` starts a release, which:
-
-1. Reads the existing `v*` tags, takes the highest patch for this month, and adds one. Nothing in the repository stores the version, so there is no bump commit and nothing to conflict over.
-2. Builds the image, passing the version as a build arg that the Dockerfile forwards to `dotnet publish /p:Version=`. Local builds default to `0.0.0`.
-3. Pushes to GHCR tagged `<version>`, `<year>.<month>`, `latest` and `sha-<short>`, with provenance attested.
-4. Creates the git tag and a GitHub release, with generated notes and the image digest.
-
-The tag comes last, so a failed build leaves none behind and the next run reuses the number.
-
-Releases are serialised, and only one run may sit pending. Merging several pull requests in quick succession cancels queued runs that a newer merge overtakes, so those commits get no version of their own — they ship in the next release, which builds the head of `main`. Every commit reaches an image; not every commit gets a version number.
-
-To cut a release without a merge — rebuilding against a new base image, say — run the workflow from the **Actions** tab.
-
-## Frontend styling
-
-`ClientApp/src/styles.css` holds the whole design layer, in two parts:
-
-- **Tokens** — a Tailwind `@theme` block of semantic names (`--color-ink`, `--color-surface`, `--color-line`, `--radius-control`). The palette is deliberately neutral: one grey ramp, ink for emphasis, red only for danger. Brand a project by editing these values; nothing else names a colour. Dark mode is the same tokens redefined under `prefers-color-scheme`, so it costs no per-component work.
-- **Component classes** — `.card`, `.input`, `.field-label`, `.btn` and friends in `@layer components`. Templates are plain HTML using those classes; there is no Angular component API to learn or maintain. See [ADR 0001](docs/adr/0001-neutral-token-layer-with-css-component-classes.md).
-
-Do not change `@theme` to `@theme inline`. That inlines token values into the generated utilities, and every dark-mode override silently stops working.
-
-## Decisions
+### Decisions
 
 Things a reader would otherwise have to reverse-engineer, and the trade-offs behind them:
 
