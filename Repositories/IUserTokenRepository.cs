@@ -22,4 +22,10 @@ public interface IUserTokenRepository
     /// retires the old ones.
     /// </summary>
     Task InvalidateOutstandingAsync(Guid userId, string purpose, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes tokens that have been spent or have expired, once they are older
+    /// than <paramref name="retention"/>. Returns how many rows went.
+    /// </summary>
+    Task<int> DeleteDeadTokensAsync(TimeSpan retention, CancellationToken ct = default);
 }

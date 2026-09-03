@@ -12,6 +12,6 @@ Email verification and password reset both work by mailing a link. Three decisio
 
 ## Consequences
 
-`user_tokens` grows and nothing prunes it. Rows are harmless once consumed or expired, but a deployment sending a lot of mail will want a periodic delete.
+`user_tokens` is pruned by a background sweep — hourly and at startup — deleting rows 30 days past use or expiry. Retention is not zero on purpose: a spent token is evidence that a link was requested, which is worth having for a month after an account behaves strangely.
 
 Two settings now interact, and the interaction is not visible from either one alone: turning SMTP off silently disables a verification requirement. It is logged nowhere. The README says so, this file says so, and a test asserts it.

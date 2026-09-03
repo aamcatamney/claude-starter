@@ -58,3 +58,9 @@ public sealed class VerificationWithoutSmtpCollection : ICollectionFixture<Verif
 {
     public const string Name = "verification-without-smtp";
 }
+
+[CollectionDefinition(Name)]
+public sealed class TokenRepositoryCollection : ICollectionFixture<DatabaseFixture>
+{
+    public const string Name = "token-repository";
+}
