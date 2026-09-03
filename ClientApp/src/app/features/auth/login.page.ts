@@ -3,7 +3,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthApi } from '../../core/auth/auth.api';
+import { AppConfig } from '../../core/passkeys/app-config';
+import { PasskeyApi } from '../../core/passkeys/passkey.api';
+import { isWebAuthnAvailable } from '../../core/passkeys/webauthn';
 import { AuthStore } from '../../core/auth/auth.store';
+import { toAuthError } from '../../core/auth/auth-error';
 
 @Component({
   selector: 'app-login-page',
@@ -93,6 +97,19 @@ import { AuthStore } from '../../core/auth/auth.store';
             <button type="submit" class="btn btn-primary btn-block">
               {{ store.pending() ? 'Signing in…' : 'Sign in' }}
             </button>
+
+            @if (passkeysAvailable()) {
+              <div class="divider-labelled"><span>or</span></div>
+
+              <button
+                type="button"
+                class="btn btn-outline btn-block"
+                (click)="signInWithPasskey()"
+                [disabled]="passkeyPending()"
+              >
+                {{ passkeyPending() ? 'Waiting for your device…' : 'Sign in with a passkey' }}
+              </button>
+            }
           </fieldset>
         </form>
 
@@ -113,6 +130,14 @@ export default class LoginPage implements OnInit {
   private readonly emailInput = viewChild<ElementRef<HTMLInputElement>>('emailInput');
 
   private readonly api = inject(AuthApi);
+  private readonly passkeys = inject(PasskeyApi);
+  private readonly config = inject(AppConfig);
+
+  /** Both must hold: the server offers passkeys and the browser supports them. */
+  protected readonly passkeysAvailable = computed(
+    () => this.config.passkeysEnabled() && isWebAuthnAvailable(),
+  );
+  protected readonly passkeyPending = signal(false);
 
   protected readonly passwordVisible = signal(false);
   protected readonly resendState = signal<'idle' | 'sent'>('idle');
@@ -135,6 +160,25 @@ export default class LoginPage implements OnInit {
   ngOnInit(): void {
     this.store.clearError();
     queueMicrotask(() => this.emailInput()?.nativeElement.focus());
+  }
+
+  protected async signInWithPasskey(): Promise<void> {
+    this.passkeyPending.set(true);
+    this.store.clearError();
+    try {
+      await this.passkeys.signIn(this.form.getRawValue().rememberMe);
+      // The session exists now; reload the user so the store agrees.
+      await this.store.loadMe();
+      const target = safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
+      this.router.navigateByUrl(target);
+    } catch (error) {
+      // A cancelled prompt is a decision, not a failure worth shouting about.
+      if (!(error instanceof DOMException && error.name === 'NotAllowedError')) {
+        this.store.setError(toAuthError(error, 'login'));
+      }
+    } finally {
+      this.passkeyPending.set(false);
+    }
   }
 
   protected async resendVerification(): Promise<void> {

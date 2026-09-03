@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using claude_starter.Data;
+using claude_starter.Endpoints;
 using claude_starter.Endpoints.Auth;
 using claude_starter.Migrations;
 using claude_starter.Repositories;
@@ -17,6 +18,7 @@ using claude_starter.Services.Auth;
 using claude_starter.Services.DataProtection;
 using claude_starter.Services.Diagnostics;
 using claude_starter.Services.Email;
+using claude_starter.Services.Passkeys;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 
@@ -51,6 +53,25 @@ if (smtpEnabled)
 else
 {
     builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
+}
+
+builder.Services.Configure<PasskeyOptions>(builder.Configuration.GetSection(PasskeyOptions.SectionName));
+
+var passkeys = builder.Configuration.GetSection(PasskeyOptions.SectionName).Get<PasskeyOptions>()
+    ?? new PasskeyOptions();
+
+if (passkeys.Enabled)
+{
+    builder.Services.AddScoped<IPasskeyRepository, PasskeyRepository>();
+    builder.Services.AddSingleton<PasskeyChallengeStore>();
+    builder.Services.AddFido2(options =>
+    {
+        // Credentials are bound to this id. Changing it orphans every passkey
+        // already registered, so it is a domain and never a URL.
+        options.ServerDomain = passkeys.RelyingPartyId;
+        options.ServerName = passkeys.RelyingPartyName;
+        options.Origins = passkeys.Origins.ToHashSet();
+    });
 }
 
 builder.Services.Configure<MetricsOptions>(builder.Configuration.GetSection(MetricsOptions.SectionName));
@@ -211,7 +232,8 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapAuthEndpoints();
+app.MapAuthEndpoints(passkeys.Enabled);
+app.MapConfigEndpoint();
 
 if (Directory.Exists(clientAppPath))
 {

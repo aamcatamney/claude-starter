@@ -1,0 +1,12 @@
+{
+  "name": "claude-starter-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser tests for flows that cannot be exercised without a real browser.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}

@@ -162,6 +162,19 @@
     @apply w-full;
   }
 
+  /* A labelled rule, for "or" between two ways of doing the same thing. */
+  .divider-labelled {
+    @apply relative my-1 text-center;
+  }
+
+  .divider-labelled::before {
+    @apply absolute inset-x-0 top-1/2 border-t border-line content-[''];
+  }
+
+  .divider-labelled span {
+    @apply relative bg-surface px-2 text-xs text-ink-subtle;
+  }
+
   /* Feedback */
   .alert-note {
     @apply mb-4 rounded-control border border-line bg-surface-muted px-3 py-2 text-sm text-ink;

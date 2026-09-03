@@ -18,6 +18,7 @@ Everything here is meant to be edited. The palette is neutral so you can brand i
 - BCrypt.Net-Next for password hashing
 - MailKit for SMTP — optional, off by default
 - OpenTelemetry metrics, pushed over OTLP — optional, off by default
+- Passkeys via Fido2.AspNet (WebAuthn) — optional, off by default
 - Angular 22 client in `ClientApp/`, served as static files
 - Deployed as a container
 
@@ -98,6 +99,7 @@ scripts/screenshots/    Seed data and Playwright capture
 tests/
   claude-starter.UnitTests/
   claude-starter.IntegrationTests/
+  e2e/                  Browser tests, including WebAuthn ceremonies
 docs/adr/               Decisions worth explaining
 ```
 
@@ -115,6 +117,9 @@ Every route lives under `/api/auth` and is rate-limited.
 | POST | `/api/auth/reset-password` | — | Set a new password from a link |
 | POST | `/api/auth/verify-email` | — | Confirm an address from a link |
 | POST | `/api/auth/resend-verification` | — | Send another confirmation link |
+| GET | `/api/config` | — | Feature flags the client needs before sign-in |
+
+With `Passkeys:Enabled`, six more routes appear under `/api/auth/passkeys` — options and verification for registration and sign-in, plus list and delete. They are unmapped when disabled. See [docs/passkeys.md](docs/passkeys.md).
 
 Two behaviours are deliberate and easy to "fix" by accident:
 
@@ -135,6 +140,10 @@ Two behaviours are deliberate and easy to "fix" by accident:
 | `Smtp:FromAddress` / `FromName` | — | Sender |
 | `RateLimit:Auth:PermitLimit` | `10` | Requests per window, per IP, across `/api/auth` |
 | `RateLimit:Auth:WindowSeconds` | `60` | Length of that window |
+| `Passkeys:Enabled` | `false` | Offer passkey registration and sign-in |
+| `Passkeys:RelyingPartyId` | `localhost` | Domain credentials bind to; changing it orphans existing passkeys |
+| `Passkeys:RelyingPartyName` | `claude-starter` | Name the device shows when prompting |
+| `Passkeys:Origins` | `http://localhost:5000` | Origins allowed to complete a ceremony |
 | `Metrics:Enabled` | `false` | Collect and push OpenTelemetry metrics |
 | `Metrics:OtlpEndpoint` | `http://localhost:4317` | Collector to push to |
 | `Metrics:ServiceName` | `claude-starter` | Name reported to the collector |
@@ -177,6 +186,7 @@ Create `Migrations/Scripts/NNNN_description.sql` with a zero-padded sequence num
 | [Email verification and password reset](docs/email-and-passwords.md) | Enabling SMTP, what changes when verification is required, upgrading an existing database |
 | [Frontend styling](docs/frontend-styling.md) | The token layer and component classes, and how to brand them |
 | [Screenshots](docs/screenshots.md) | Every page in both themes, and how to regenerate them |
+| [Passkeys](docs/passkeys.md) | Enabling WebAuthn sign-in, and what it deliberately does not change |
 | [Metrics](docs/metrics.md) | What is measured, and why nothing is exposed over HTTP |
 | [Continuous integration](docs/continuous-integration.md) | The self-hosted runner, and why fork pull requests stay off it |
 | [Versioning and releases](docs/releases.md) | CalVer, what a merge to `main` publishes, and what it does not |

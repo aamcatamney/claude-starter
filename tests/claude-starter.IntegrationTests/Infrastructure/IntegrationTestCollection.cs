@@ -76,3 +76,15 @@ public sealed class MetricsEnabledCollection : ICollectionFixture<MetricsEnabled
 {
     public const string Name = "metrics-enabled";
 }
+
+[CollectionDefinition(Name)]
+public sealed class PasskeysEnabledCollection : ICollectionFixture<PasskeysEnabledFixture>
+{
+    public const string Name = "passkeys-enabled";
+}
+
+[CollectionDefinition(Name)]
+public sealed class PasskeysDisabledCollection : ICollectionFixture<DatabaseFixture>
+{
+    public const string Name = "passkeys-disabled";
+}
