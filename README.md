@@ -5,222 +5,228 @@
 [![Angular 22](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)](https://angular.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-.NET 10 web app serving an Angular client. Backend uses Dapper + Npgsql against PostgreSQL with SQL migrations applied on startup via DbUp.
+A .NET 10 application serving an Angular client from a single project, with cookie authentication, Dapper against PostgreSQL, and SQL migrations applied on startup. Optional SMTP unlocks email verification and password reset.
+
+Everything here is meant to be edited. The palette is neutral so you can brand it, the auth is complete so you can build past it, and the decisions that would otherwise puzzle you are written down in [`docs/adr/`](docs/adr/).
 
 ## Stack
 
-- .NET 10 (single project, `claude-starter.csproj`)
-- PostgreSQL
-- Dapper + Npgsql (repository pattern, no EF Core)
-- DbUp for migrations (embedded `Migrations/Scripts/*.sql`)
+- .NET 10, one project (`claude-starter.csproj`)
+- PostgreSQL, reached through Dapper + Npgsql in a repository pattern — no EF Core
+- DbUp migrations, embedded from `Migrations/Scripts/*.sql`
+- Cookie authentication, with Data Protection keys persisted in Postgres
 - BCrypt.Net-Next for password hashing
-- MailKit for SMTP (optional; off by default)
-- Cookie authentication (ASP.NET Core), Data Protection keys persisted in Postgres
+- MailKit for SMTP — optional, off by default
 - Angular 22 client in `ClientApp/`, served as static files
+- Deployed as a container
+
+## Getting started
+
+You need the .NET 10 SDK, Docker, and Node 22.22.3+ or 24.15.0+ (Angular 22 sets that floor).
+
+```bash
+# 1. Postgres
+docker compose up -d
+
+# 2. Client dependencies
+cd ClientApp && npm ci && cd ..
+
+# 3. Build the client, then run the app — it serves the bundle too
+cd ClientApp && npm run build && cd ..
+dotnet run
+```
+
+The app creates the database if it is missing, then DbUp applies any pending scripts and records them in `schemaversions`. Re-running is idempotent.
+
+There is no seed user. Register one at `/register` to get in.
+
+### Dev loop
+
+Two terminals, same origin — no `ng serve`, no proxy. The .NET host serves the Angular build output from `ClientApp/dist/claude-starter/browser`.
+
+```bash
+# Terminal 1 — rebuild the client into dist/ on every change
+cd ClientApp
+npm run watch
+
+# Terminal 2 — the API, which also serves the client and the SPA fallback
+dotnet run
+```
+
+`npm ci` installs exactly what `package-lock.json` records, which is what CI does. Reach for `npm install` only when you mean to change dependencies.
+
+### Docker Compose
+
+```bash
+docker compose down      # stop, keep data
+docker compose down -v   # stop and wipe the volume
+```
 
 ## Project structure
 
 ```
-Program.cs              App wiring, auth, rate limiting, SPA fallback
+Program.cs              Wiring: auth, rate limiting, options, SPA fallback
 Endpoints/              Minimal API endpoints — one endpoint per file
-  Auth/                 /api/auth login, logout, register, me
-Repositories/           Dapper repositories (no EF Core)
-Services/               BCrypt password hashing, email links, SMTP, Data Protection
-Data/                   Npgsql connection factory + Dapper config
+  Auth/                 Everything under /api/auth
+Repositories/           Dapper repositories
+Services/
+  Auth/                 Password hashing, email links, token cleanup
+  Email/                SMTP and no-op senders, options
+  DataProtection/       Postgres-backed key storage
+Data/                   Npgsql connection factory, Dapper config
 Models/                 Domain types
 Migrations/
-  DbMigrator.cs         DbUp runner (applied on startup)
-  Scripts/*.sql         Embedded migration scripts, applied in name order
+  DbMigrator.cs         DbUp runner, applied on startup
+  Scripts/*.sql         Embedded, applied in name order
 ClientApp/              Angular 22 client
+tests/
+  claude-starter.UnitTests/
+  claude-starter.IntegrationTests/
+docs/adr/               Decisions worth explaining
 ```
 
 ## API
 
-All routes are rate-limited and live under `/api/auth`:
+Every route lives under `/api/auth` and is rate-limited.
 
 | Method | Route | Auth | Purpose |
 | --- | --- | --- | --- |
-| POST | `/api/auth/register` | — | Create a user |
-| POST | `/api/auth/login` | — | Sign in, sets auth + `XSRF-TOKEN` cookies |
-| POST | `/api/auth/logout` | required | Sign out — see [ADR 0003](docs/adr/0003-logout-is-not-gated-on-the-antiforgery-token.md) |
-| GET | `/api/auth/me` | required | Current user |
-| POST | `/api/auth/forgot-password` | — | Send a reset link; always 202 |
+| POST | `/api/auth/register` | — | Create an account |
+| POST | `/api/auth/login` | — | Sign in; sets auth and `XSRF-TOKEN` cookies |
+| POST | `/api/auth/logout` | required | Sign out |
+| GET | `/api/auth/me` | required | The current user |
+| POST | `/api/auth/forgot-password` | — | Send a reset link |
 | POST | `/api/auth/reset-password` | — | Set a new password from a link |
 | POST | `/api/auth/verify-email` | — | Confirm an address from a link |
-| POST | `/api/auth/resend-verification` | — | Send another link; always 202 |
+| POST | `/api/auth/resend-verification` | — | Send another confirmation link |
 
-There is no seed user — register one to get started.
+Two behaviours are deliberate and easy to "fix" by accident:
 
-`forgot-password` and `resend-verification` answer 202 whether or not the address exists. Anything else would make them a way to test which addresses have accounts.
-
-## Prerequisites
-
-- .NET 10 SDK
-- Docker (or a local Postgres instance)
-- Node.js 22.22.3+ or 24.15.0+ and npm (Angular 22 requires it)
+- **`forgot-password` and `resend-verification` always answer 202**, whether or not the address exists. Anything else turns them into a way to test which addresses have accounts.
+- **`logout` signs you out even if the antiforgery token is rejected.** Refusing would leave the cookie alive while the client cleared its own state — a signed-out screen in front of a live session. See [ADR 0003](docs/adr/0003-logout-is-not-gated-on-the-antiforgery-token.md).
 
 ## Configuration
 
-Connection string is read from `ConnectionStrings:Postgres`. Default in `appsettings.json` points at `localhost:5432` as `postgres` / `postgres`. Override via env var:
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `ConnectionStrings:Postgres` | `localhost:5432`, `postgres`/`postgres` | Database |
+| `Auth:RequireEmailVerification` | `false` | Refuse sign-in until the address is confirmed. Forced off while SMTP is disabled |
+| `Auth:AppBaseUrl` | request origin | Origin used to build links in emails |
+| `Auth:BCryptWorkFactor` | `12` | Password hashing cost. Raise as hardware improves |
+| `Smtp:Enabled` | `false` | With this off, nothing is sent |
+| `Smtp:Host` / `Port` / `UseStartTls` | — / `587` / `true` | Server |
+| `Smtp:Username` / `Password` | — | Credentials, omitted for an open relay |
+| `Smtp:FromAddress` / `FromName` | — | Sender |
+| `RateLimit:Auth:PermitLimit` | `10` | Requests per window, per IP, across `/api/auth` |
+| `RateLimit:Auth:WindowSeconds` | `60` | Length of that window |
 
-```
-ConnectionStrings__Postgres=Host=db;Port=5432;Database=claude_starter;Username=...;Password=...
-```
+Override any of them with environment variables, doubling the underscore for nesting:
 
-## Email, verification and password reset
-
-Both flows mail a single-use link. SMTP is **off by default**, and with it off nothing is sent — in Development the message is written to the log instead, so the flows can be exercised without a mail server. It is never logged in any other environment: those bodies contain working links.
-
-```jsonc
-"Smtp": {
-  "Enabled": false,        // off: nothing is sent
-  "Host": "", "Port": 587, "UseStartTls": true,
-  "Username": "", "Password": "",
-  "FromAddress": "", "FromName": ""
-},
-"Auth": {
-  "RequireEmailVerification": false,  // forced false while Smtp:Enabled is false
-  "AppBaseUrl": ""                    // origin for links; defaults to the request's own
-}
+```bash
+ConnectionStrings__Postgres="Host=db;Port=5432;Database=claude_starter;Username=...;Password=..."
+Smtp__Enabled=true
+Auth__RequireEmailVerification=true
 ```
 
-**`RequireEmailVerification` is ignored while SMTP is disabled**, whatever it is set to. Requiring a confirmation that nothing can send would leave every account — including yours — waiting forever with no way back in. See [ADR 0005](docs/adr/0005-email-links-are-hashed-single-use-and-cannot-outrun-smtp.md).
+`Auth:BCryptWorkFactor` is worth understanding before you touch it: a hash at 12 costs a few hundred milliseconds by design, which is what makes guessing expensive. A unit test pins the default at 12 or above so it cannot quietly drop.
 
-With verification required, registering creates the account and sends a link but issues **no session**, and signing in before confirming returns 403 rather than 401: the credentials were right, the account is not ready yet.
+## Email verification and password reset
 
-Reset links last an hour, verification links 24 hours, and both work once. Requesting a new one retires the old. Completing a password reset ends every session opened before it.
+Both flows mail a single-use link. With `Smtp:Enabled` false nothing is sent — in Development the message is written to the log instead, so you can exercise the flows without a mail server. It is never logged in any other environment, because those bodies contain working links.
 
-Spent and expired tokens are deleted by a background sweep, hourly and on startup, once they are 30 days past use or expiry. The delay is deliberate: it keeps "was a reset link ever requested for this account?" answerable, which is the question that follows a suspicious sign-in.
+**`Auth:RequireEmailVerification` is ignored while SMTP is disabled**, whatever it is set to. Requiring a confirmation that nothing can send would leave every account — including yours — waiting forever with no way back in. See [ADR 0005](docs/adr/0005-email-links-are-hashed-single-use-and-cannot-outrun-smtp.md).
+
+With verification required:
+
+- Registering creates the account and sends a link but issues **no session**.
+- Signing in before confirming returns **403**, not 401 — the credentials were right, the account is not ready — carrying a problem type the client uses to offer a resend.
+
+Reset links last an hour, confirmation links 24 hours, and each works once; requesting a new one retires the old. Completing a reset ends every session opened before it. Spent and expired tokens are deleted by a background sweep, hourly and at startup, once they are 30 days past use — long enough to still answer "was a reset ever requested for this account?"
 
 ### Upgrading an existing deployment
 
-Two things happen the first time this runs against a database that predates it, neither of which affects a fresh one.
+Two things happen the first time this runs against a database that predates these features. Neither affects a fresh one.
 
-**Everyone is signed out, once.** Cookies issued before this carry no security-stamp claim and are rejected. Nothing is wrong; people sign in again.
+**Everyone is signed out, once.** Cookies issued earlier carry no security-stamp claim and are rejected. Nothing is wrong; people sign in again.
 
-**Existing users are `email_verified = false`**, because nobody has confirmed those addresses. That is only a problem if you then turn on `Auth:RequireEmailVerification`, which would hold every existing account at the login gate until each requests a link. To grandfather them instead, decide deliberately and run:
+**Existing users are `email_verified = false`**, because nobody has confirmed those addresses. That only bites if you then enable `Auth:RequireEmailVerification`, which would hold every existing account at the login gate. To grandfather them, decide deliberately and run:
 
 ```sql
 UPDATE users SET email_verified = true;
 ```
 
-## Running locally
+## Tests
 
-Start Postgres via Docker Compose:
+```bash
+dotnet test              # backend; integration tests need Docker for Testcontainers
 
-```powershell
-docker compose up -d
-```
-
-Tear down (keep data):
-
-```powershell
-docker compose down
-```
-
-Tear down and wipe the volume:
-
-```powershell
-docker compose down -v
-```
-
-Install Angular dependencies (first run):
-
-```powershell
 cd ClientApp
-npm ci
-cd ..
+npm test -- --no-watch   # frontend
 ```
 
-`npm ci` installs exactly what `package-lock.json` records, which is what CI
-does. Use `npm install` only when you intend to change dependencies.
+Integration tests start one Postgres container for the whole run. Each collection then creates its own database inside it, migrates it, and boots one application against it — which is what lets collections run in parallel. See [ADR 0004](docs/adr/0004-integration-tests-share-a-container-and-isolate-by-database.md).
 
-### Dev loop
+Adding a test class means adding a collection: a `[CollectionDefinition]` and a matching `[Collection]` attribute. Forget the attribute and xunit reports *"constructor parameters did not have matching fixture data"*, which sounds like a dependency-injection problem and is not.
 
-Two terminals, both same-origin (Angular output served from `wwwroot` by .NET — no `ng serve`, no proxy):
+Tests hash at work factor 4. At the production 12, a suite that hashes on nearly every case spends all its time there.
 
-```powershell
-# Terminal 1 — rebuild Angular on change into dist/
-cd ClientApp
-npm run watch
+## Adding a migration
 
-# Terminal 2 — run API (also serves the Angular bundle and SPA fallback)
-dotnet run
-```
-
-On startup the app ensures the database exists, then DbUp applies any pending scripts from `Migrations/Scripts/` and tracks them in the `schemaversions` table. Re-running is idempotent.
-
-### Production build
-
-```powershell
-cd ClientApp
-npm run build
-cd ..
-dotnet run
-```
-
-### Tests
-
-```powershell
-# Backend (integration tests need Docker running for Testcontainers)
-dotnet test
-
-# Frontend
-cd ClientApp
-npm test -- --no-watch
-```
-
-Integration tests start one Postgres container for the whole run. Each test collection creates its own database inside it, migrates it and boots one application against it, so collections run in parallel — see [ADR 0004](docs/adr/0004-integration-tests-share-a-container-and-isolate-by-database.md). A new test class needs its own `[CollectionDefinition]` and a matching `[Collection]` attribute; without the attribute xunit reports "constructor parameters did not have matching fixture data", which does not sound like a missing attribute.
-
-Password hashing cost is configurable as `Auth:BCryptWorkFactor`, defaulting to 12. Tests set 4: at 12 a single hash costs a few hundred milliseconds, and a suite that hashes on nearly every case spends all its time there. Raise the default as hardware gets faster — a unit test pins it at 12 or above so it cannot quietly drop.
+Create `Migrations/Scripts/NNNN_description.sql` with a zero-padded sequence number. It is picked up as an embedded resource automatically, and DbUp applies it in name order on the next startup.
 
 ## Continuous integration
 
 Workflows run on a **self-hosted runner** labelled `self-hosted, linux, X64`.
 
-One exception: `ci.yml` picks its runner per event. Pushes to `main` and pull requests from branches in this repository — all of which already require write access — go to the self-hosted runner. **Pull requests from forks fall back to `ubuntu-latest`**, because a fork PR is untrusted code and `npm install` and `dotnet test` would execute it on your machine, on a runner that persists between jobs. This is why GitHub advises against self-hosted runners on public repositories. Keep that fallback if the repository is public.
+`ci.yml` picks its runner per event. Pushes to `main` and pull requests from branches in this repository — all of which already require write access — use the self-hosted runner. **Pull requests from forks fall back to `ubuntu-latest`**: a fork PR is untrusted code, and `npm ci` and `dotnet test` would run it on your own machine, on a runner that persists between jobs. Keep that fallback while the repository is public.
 
-Requirements on the self-hosted machine:
+The self-hosted machine needs:
 
-- .NET 10 SDK toolchain fetchable by `actions/setup-dotnet` (linux-x64) and Node 22 by `actions/setup-node`
-- A running Docker daemon — integration tests use Testcontainers, and the release workflow builds the image
-- The release image targets `linux/amd64`, which is native on this runner; no QEMU emulation is involved. Targeting another architecture would need `docker/setup-qemu-action` adding back.
+- A .NET 10 SDK reachable by `actions/setup-dotnet` (linux-x64) and Node by `actions/setup-node`
+- A running Docker daemon, for Testcontainers and for the release image
+- Nothing else — the image targets `linux/amd64`, which is native here, so no QEMU is involved
 
-`template-bootstrap.yml` targets the same runner, which only works while generated repos can reach it — see [Using this template](#option-1--use-this-template-button-automatic).
+`template-bootstrap.yml` targets the same runner, which only works while generated repositories can reach it — see [Using this template](#option-1--use-this-template-button-automatic).
 
-To go back to GitHub-hosted runners, set `runs-on: ubuntu-latest` in `.github/workflows/*.yml`.
+To return to GitHub-hosted runners, set `runs-on: ubuntu-latest` across `.github/workflows/*.yml`.
+
+## Versioning and releases
+
+Versions are CalVer: **`YYYY.M.PATCH`** — `2026.9.0`, then `2026.9.1`. The patch counts releases within the month and restarts when the month turns over. The month is unpadded on purpose, which keeps the version valid semver and therefore sortable by tooling.
+
+Every push to `main` touching anything other than Markdown or `LICENSE` starts a release, which:
+
+1. Reads the existing `v*` tags, takes the highest patch for this month, and adds one. Nothing in the repository stores the version, so there is no bump commit and nothing to conflict over.
+2. Builds the image, passing the version as a build arg that the Dockerfile forwards to `dotnet publish /p:Version=`. Local builds default to `0.0.0`.
+3. Pushes to GHCR tagged `<version>`, `<year>.<month>`, `latest` and `sha-<short>`, with provenance attested.
+4. Creates the git tag and a GitHub release, with generated notes and the image digest.
+
+The tag comes last, so a failed build leaves none behind and the next run reuses the number.
+
+Releases are serialised, and only one run may sit pending. Merging several pull requests in quick succession cancels queued runs that a newer merge overtakes, so those commits get no version of their own — they ship in the next release, which builds the head of `main`. Every commit reaches an image; not every commit gets a version number.
+
+To cut a release without a merge — rebuilding against a new base image, say — run the workflow from the **Actions** tab.
 
 ## Frontend styling
 
 `ClientApp/src/styles.css` holds the whole design layer, in two parts:
 
-- **Tokens** — a Tailwind `@theme` block of semantic names (`--color-ink`, `--color-surface`, `--color-line`, `--radius-control`). The palette is deliberately neutral: one grey ramp, ink for emphasis, red only for danger. Give a project its own identity by editing these values; nothing else names a colour. Dark mode is the same tokens redefined under `prefers-color-scheme`, so it needs no per-component work.
-- **Component classes** — `.card`, `.input`, `.field-label`, `.btn` and friends in `@layer components`. Templates use plain HTML with these classes; there is no Angular component API to learn or maintain.
+- **Tokens** — a Tailwind `@theme` block of semantic names (`--color-ink`, `--color-surface`, `--color-line`, `--radius-control`). The palette is deliberately neutral: one grey ramp, ink for emphasis, red only for danger. Brand a project by editing these values; nothing else names a colour. Dark mode is the same tokens redefined under `prefers-color-scheme`, so it costs no per-component work.
+- **Component classes** — `.card`, `.input`, `.field-label`, `.btn` and friends in `@layer components`. Templates are plain HTML using those classes; there is no Angular component API to learn or maintain. See [ADR 0001](docs/adr/0001-neutral-token-layer-with-css-component-classes.md).
 
-Do not change `@theme` to `@theme inline` — that inlines token values into the generated utilities and the dark-mode overrides stop working.
+Do not change `@theme` to `@theme inline`. That inlines token values into the generated utilities, and every dark-mode override silently stops working.
 
-See [ADR 0001](docs/adr/0001-neutral-token-layer-with-css-component-classes.md) for why classes rather than components.
+## Decisions
 
-## Versioning and releases
+Things a reader would otherwise have to reverse-engineer, and the trade-offs behind them:
 
-Versions are CalVer: **`YYYY.M.PATCH`** — for example `2026.9.0`, then `2026.9.1`. `PATCH` counts releases within the current month and restarts at `0` when the month turns over. The month is deliberately unpadded so the version is still valid semver, which keeps image tags sortable by tooling.
-
-Every push to `main` that touches something other than Markdown or `LICENSE` starts a release. The `Release` workflow:
-
-1. Reads the existing `v*` git tags, takes the highest patch for the current month, and adds one. Nothing in the repo stores the version, so there is no bump commit and nothing to resolve conflicts over.
-2. Builds the image, passing the version as the `VERSION` build arg. The Dockerfile forwards it to `dotnet publish /p:Version=`, so the assembly reports the version it was released as. Local builds default to `0.0.0`.
-3. Pushes to GHCR tagged `<version>`, `<year>.<month>`, `latest`, and `sha-<short>`, with build provenance attested.
-4. Creates the git tag and a GitHub release with auto-generated notes plus the image digest.
-
-The tag is created last, so a failed build leaves no tag behind and the next run reuses the same number.
-
-Releases are serialised by a concurrency group, and only one run may sit pending in it. Merging several pull requests in quick succession therefore cancels the queued runs that a newer merge overtakes, and those commits get no release of their own — they ship in the next release instead, which builds whatever is at the head of `main`. Every commit still reaches an image; not every commit gets its own version number.
-
-To cut a release without a merge — a rebuild against a new base image, say — run the workflow manually from the **Actions** tab.
-
-## Adding a migration
-
-Create `Migrations/Scripts/NNNN_description.sql` (zero-padded sequence). The file is automatically included as an embedded resource. DbUp applies scripts in name order on next startup.
+| ADR | Decision |
+| --- | --- |
+| [0001](docs/adr/0001-neutral-token-layer-with-css-component-classes.md) | A neutral token layer with CSS component classes, rather than Angular components |
+| [0002](docs/adr/0002-typescript-version-tracks-angular-peer-range.md) | TypeScript tracks Angular's build peer range, so its version looks perpetually behind |
+| [0003](docs/adr/0003-logout-is-not-gated-on-the-antiforgery-token.md) | Logout signs you out even when the antiforgery token is rejected |
+| [0004](docs/adr/0004-integration-tests-share-a-container-and-isolate-by-database.md) | Integration tests share one container and isolate by database |
+| [0005](docs/adr/0005-email-links-are-hashed-single-use-and-cannot-outrun-smtp.md) | Email links are stored hashed and single-use, and verification cannot outrun SMTP |
 
 ## License
 
@@ -263,7 +269,7 @@ After it finishes:
 
 ```bash
 git init && git add -A && git commit -m "Initial commit"
-cd ClientApp && npm install
+cd ClientApp && npm ci
 dotnet restore my-new-app.sln
 ```
 <!-- TEMPLATE:END -->
