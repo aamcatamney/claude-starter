@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/aamcatamney/claude-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/aamcatamney/claude-starter/actions/workflows/ci.yml)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Angular 21](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)](https://angular.dev/)
+[![Angular 22](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)](https://angular.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 .NET 10 web app serving an Angular client. Backend uses Dapper + Npgsql against PostgreSQL with SQL migrations applied on startup via DbUp.
@@ -15,7 +15,7 @@
 - DbUp for migrations (embedded `Migrations/Scripts/*.sql`)
 - BCrypt.Net-Next for password hashing
 - Cookie authentication (ASP.NET Core), Data Protection keys persisted in Postgres
-- Angular 21 client in `ClientApp/`, served as static files
+- Angular 22 client in `ClientApp/`, served as static files
 
 ## Project structure
 
@@ -30,7 +30,7 @@ Models/                 Domain types
 Migrations/
   DbMigrator.cs         DbUp runner (applied on startup)
   Scripts/*.sql         Embedded migration scripts, applied in name order
-ClientApp/              Angular 21 client
+ClientApp/              Angular 22 client
 ```
 
 ## API
@@ -50,7 +50,7 @@ There is no seed user — register one to get started.
 
 - .NET 10 SDK
 - Docker (or a local Postgres instance)
-- Node.js + npm (for the Angular client)
+- Node.js 22.22.3+ or 24.15.0+ and npm (Angular 22 requires it)
 
 ## Configuration
 
@@ -84,9 +84,12 @@ Install Angular dependencies (first run):
 
 ```powershell
 cd ClientApp
-npm install
+npm ci
 cd ..
 ```
+
+`npm ci` installs exactly what `package-lock.json` records, which is what CI
+does. Use `npm install` only when you intend to change dependencies.
 
 ### Dev loop
 
@@ -120,7 +123,7 @@ dotnet test
 
 # Frontend
 cd ClientApp
-npm test
+npm test -- --no-watch
 ```
 
 ## Continuous integration
