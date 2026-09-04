@@ -88,3 +88,15 @@ public sealed class PasskeysDisabledCollection : ICollectionFixture<DatabaseFixt
 {
     public const string Name = "passkeys-disabled";
 }
+
+[CollectionDefinition(Name)]
+public sealed class ClosedRegistrationCollection : ICollectionFixture<ClosedRegistrationFixture>
+{
+    public const string Name = "closed-registration";
+}
+
+[CollectionDefinition(Name)]
+public sealed class AdminFlagCollection : ICollectionFixture<DatabaseFixture>
+{
+    public const string Name = "admin-flag";
+}

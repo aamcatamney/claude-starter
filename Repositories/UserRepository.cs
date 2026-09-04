@@ -7,7 +7,7 @@ namespace claude_starter.Repositories;
 public sealed class UserRepository : IUserRepository
 {
     private const string SelectColumns =
-        "id, email, password_hash, display_name, is_active, email_verified, security_stamp, created_at, updated_at";
+        "id, email, password_hash, display_name, is_active, email_verified, is_admin, security_stamp, created_at, updated_at";
 
     private readonly IDbConnectionFactory _factory;
 
@@ -36,16 +36,32 @@ public sealed class UserRepository : IUserRepository
                 cancellationToken: ct));
     }
 
-    public async Task<Guid> CreateAsync(string email, string passwordHash, string? displayName, CancellationToken ct = default)
+    public async Task<Guid> CreateAsync(
+        string email,
+        string passwordHash,
+        string? displayName,
+        bool isAdmin = false,
+        CancellationToken ct = default)
     {
         using var conn = _factory.Create();
         return await conn.ExecuteScalarAsync<Guid>(
             new CommandDefinition(
-                @"INSERT INTO users (email, password_hash, display_name)
-                  VALUES (lower(@email), @passwordHash, @displayName)
+                @"INSERT INTO users (email, password_hash, display_name, is_admin)
+                  VALUES (lower(@email), @passwordHash, @displayName, @isAdmin)
                   RETURNING id",
-                new { email, passwordHash, displayName },
+                new { email, passwordHash, displayName, isAdmin },
                 cancellationToken: ct));
+    }
+
+    /// <summary>
+    /// Whether the deployment has any accounts at all. The bootstrap invite is
+    /// only honoured while this is false, so the first account closes the door.
+    /// </summary>
+    public async Task<bool> AnyAsync(CancellationToken ct = default)
+    {
+        using var conn = _factory.Create();
+        return await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition("SELECT EXISTS (SELECT 1 FROM users)", cancellationToken: ct));
     }
 
     public async Task<bool> UpdatePasswordAsync(Guid id, string passwordHash, CancellationToken ct = default)

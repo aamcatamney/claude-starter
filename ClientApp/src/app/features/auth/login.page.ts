@@ -113,10 +113,12 @@ import { toAuthError } from '../../core/auth/auth-error';
           </fieldset>
         </form>
 
-        <p class="prose-note mt-6">
-          Don't have an account?
-          <a routerLink="/register" [queryParams]="passThroughReturnUrl()" class="link">Create one</a>.
-        </p>
+        @if (registrationOpen()) {
+          <p class="prose-note mt-6">
+            Don't have an account?
+            <a routerLink="/register" [queryParams]="passThroughReturnUrl()" class="link">Create one</a>.
+          </p>
+        }
       </section>
     </main>
   `,
@@ -138,6 +140,7 @@ export default class LoginPage implements OnInit {
     () => this.config.passkeysEnabled() && isWebAuthnAvailable(),
   );
   protected readonly passkeyPending = signal(false);
+  protected readonly registrationOpen = computed(() => this.config.publicRegistrationEnabled());
 
   protected readonly passwordVisible = signal(false);
   protected readonly resendState = signal<'idle' | 'sent'>('idle');

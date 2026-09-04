@@ -32,6 +32,6 @@ public static class MeEndpoint
 
         AuthEndpoints.IssueXsrfCookie(http, antiforgery);
 
-        return Results.Ok(new LoginEndpoint.UserResponse(user.Id, user.Email, user.DisplayName));
+        return Results.Ok(new LoginEndpoint.UserResponse(user.Id, user.Email, user.DisplayName, user.IsAdmin));
     }
 }

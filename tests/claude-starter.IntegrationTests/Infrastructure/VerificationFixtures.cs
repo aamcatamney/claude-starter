@@ -11,6 +11,7 @@ public sealed class VerificationRequiredFixture : DatabaseFixture
     protected override IReadOnlyDictionary<string, string?> Settings { get; } =
         new Dictionary<string, string?>
         {
+            ["Auth:AllowPublicRegistration"] = "true",
             ["Smtp:Enabled"] = "true",
             ["Auth:RequireEmailVerification"] = "true",
         };
@@ -27,6 +28,7 @@ public sealed class VerificationWithoutSmtpFixture : DatabaseFixture
     protected override IReadOnlyDictionary<string, string?> Settings { get; } =
         new Dictionary<string, string?>
         {
+            ["Auth:AllowPublicRegistration"] = "true",
             ["Smtp:Enabled"] = "false",
             ["Auth:RequireEmailVerification"] = "true",
         };
@@ -40,6 +42,7 @@ public sealed class MetricsEnabledFixture : DatabaseFixture
     protected override IReadOnlyDictionary<string, string?> Settings { get; } =
         new Dictionary<string, string?>
         {
+            ["Auth:AllowPublicRegistration"] = "true",
             ["Metrics:Enabled"] = "true",
             ["Metrics:OtlpEndpoint"] = "http://localhost:4317",
         };

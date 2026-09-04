@@ -9,12 +9,14 @@ DELETE FROM users WHERE email IN ('screenshot@example.com', 'unverified@example.
 
 -- Password is "screenshot-password". The hash is committed rather than
 -- generated so a rerun produces byte-identical state.
-INSERT INTO users (id, email, password_hash, display_name, is_active, email_verified)
+-- An administrator, so the admin chip appears in the landing screenshot.
+INSERT INTO users (id, email, password_hash, display_name, is_active, email_verified, is_admin)
 VALUES (
     '11111111-1111-1111-1111-111111111111',
     'screenshot@example.com',
     '$2a$12$U0nqhd15oKnBjoFkv3FTQeNMyAPX.oeadXOtbxmTyQ1Hm3QR/BlHq',
     'Sam Rivera',
+    true,
     true,
     true
 );

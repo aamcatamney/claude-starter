@@ -13,6 +13,8 @@ export interface RegisterPayload {
   email: string;
   password: string;
   displayName: string | null;
+  /** Present only when arriving from the bootstrap link in the logs. */
+  inviteToken?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

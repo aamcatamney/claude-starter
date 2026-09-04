@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthStore } from '../../core/auth/auth.store';
+import { AppConfig } from '../../core/passkeys/app-config';
 
 @Component({
   selector: 'app-register-page',
@@ -19,9 +20,26 @@ import { AuthStore } from '../../core/auth/auth.store';
           <p class="prose-note">
             <a routerLink="/login" class="link">Back to sign in</a>
           </p>
+        } @else if (!canRegister()) {
+          <h1 id="register-title" class="page-title">Registration is closed</h1>
+          <p class="page-subtitle">
+            Accounts are created by an administrator. Ask for an invitation, or if this is a new
+            deployment, use the link written to the application log at startup.
+          </p>
+          <p class="prose-note">
+            <a routerLink="/login" class="link">Back to sign in</a>
+          </p>
         } @else {
-        <h1 id="register-title" class="page-title">Create account</h1>
-        <p class="page-subtitle">Set up a new account to get started.</p>
+        <h1 id="register-title" class="page-title">
+          {{ inviteToken() ? 'Create the first account' : 'Create account' }}
+        </h1>
+        <p class="page-subtitle">
+          {{
+            inviteToken()
+              ? 'This account will be the administrator.'
+              : 'Set up a new account to get started.'
+          }}
+        </p>
 
         @if (store.error(); as err) {
           <div role="alert" class="alert-danger">{{ err.message }}</div>
@@ -112,6 +130,18 @@ export default class RegisterPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly emailInput = viewChild<ElementRef<HTMLInputElement>>('emailInput');
 
+  /** Bound from the query string; present when following the bootstrap link. */
+  readonly token = input('');
+
+  private readonly config = inject(AppConfig);
+
+  protected readonly inviteToken = computed(() => this.token() || null);
+
+  /** Either the door is open, or this caller is carrying an invitation. */
+  protected readonly canRegister = computed(
+    () => this.config.publicRegistrationEnabled() || this.inviteToken() !== null,
+  );
+
   protected readonly passwordVisible = signal(false);
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -151,6 +181,7 @@ export default class RegisterPage implements OnInit {
       email: raw.email,
       password: raw.password,
       displayName: raw.displayName.trim() === '' ? null : raw.displayName.trim(),
+      inviteToken: this.inviteToken(),
     });
     if (ok && !this.store.awaitingVerification()) {
       const target = safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));

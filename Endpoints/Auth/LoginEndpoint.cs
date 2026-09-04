@@ -19,7 +19,7 @@ public static class LoginEndpoint
     public const string EmailNotVerifiedType = "https://claude-starter/problems/email-not-verified";
 
     public sealed record LoginRequest(string Email, string Password, bool RememberMe);
-    public sealed record UserResponse(Guid Id, string Email, string? DisplayName);
+    public sealed record UserResponse(Guid Id, string Email, string? DisplayName, bool IsAdmin = false);
 
     public static IEndpointRouteBuilder MapLoginEndpoint(this IEndpointRouteBuilder app)
     {
@@ -70,37 +70,11 @@ public static class LoginEndpoint
                 type: EmailNotVerifiedType);
         }
 
-        var identity = new ClaimsIdentity(new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(AuthEndpoints.SecurityStampClaim, user.SecurityStamp.ToString()),
-        }, CookieAuthenticationDefaults.AuthenticationScheme);
-
-        var props = new AuthenticationProperties
-        {
-            IsPersistent = request.RememberMe,
-            ExpiresUtc = request.RememberMe ? DateTimeOffset.UtcNow.AddDays(14) : null,
-        };
-
-        var principal = new ClaimsPrincipal(identity);
-
-        await http.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            principal,
-            props);
-
-        // SignInAsync only writes the response cookie; it leaves HttpContext.User
-        // anonymous for the rest of this request. Antiforgery tokens are bound to
-        // the current user, so minting one now would bind it to nobody and every
-        // later authenticated request would reject it.
-        http.User = principal;
-
-        AuthEndpoints.IssueXsrfCookie(http, antiforgery);
+        await AuthEndpoints.SignInAsync(http, user, request.RememberMe, antiforgery);
 
         logger.LogInformation("Login success. UserId={UserId}", user.Id);
         metrics.SignIn("success");
 
-        return Results.Ok(new UserResponse(user.Id, user.Email, user.DisplayName));
+        return Results.Ok(new UserResponse(user.Id, user.Email, user.DisplayName, user.IsAdmin));
     }
 }

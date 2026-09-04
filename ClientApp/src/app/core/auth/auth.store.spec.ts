@@ -10,6 +10,7 @@ const sampleUser: AuthenticatedUser = {
   id: '00000000-0000-0000-0000-000000000001',
   email: 'jane@example.com',
   displayName: 'Jane',
+  isAdmin: false,
 };
 
 function asObservable<T>(value: T): Observable<T> {

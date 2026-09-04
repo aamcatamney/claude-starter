@@ -16,7 +16,7 @@ public static class RegisterEndpoint
     private const int MinPasswordLength = 12;
     private const int MaxEmailLength = 254;
 
-    public sealed record RegisterRequest(string Email, string Password, string? DisplayName);
+    public sealed record RegisterRequest(string Email, string Password, string? DisplayName, string? InviteToken);
 
     /// <summary>Returned instead of a session when verification is required.</summary>
     public sealed record PendingVerificationResponse(string Email)
@@ -37,6 +37,7 @@ public static class RegisterEndpoint
         IPasswordHasher hasher,
         IAntiforgery antiforgery,
         EmailLinkService links,
+        BootstrapInviteService invites,
         IOptions<AuthOptions> authOptions,
         AppMetrics metrics,
         ILoggerFactory loggerFactory,
@@ -44,6 +45,29 @@ public static class RegisterEndpoint
     {
         var logger = loggerFactory.CreateLogger("Auth.Register");
         var email = (request.Email ?? string.Empty).Trim();
+
+        // Three ways in, in order of precedence: registration is open to
+        // everyone; or this is a genuine bootstrap invite and no account exists
+        // yet, which makes the caller the first administrator; or the door is
+        // shut.
+        var isBootstrap = false;
+
+        if (!authOptions.Value.AllowPublicRegistration)
+        {
+            var inviteAccepted = invites.IsValid(request.InviteToken) && !await users.AnyAsync(ct);
+
+            if (!inviteAccepted)
+            {
+                logger.LogWarning("Registration refused: closed to the public and no usable invite.");
+                metrics.Registration("refused");
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Registration is closed",
+                    detail: "Ask an administrator for an account.");
+            }
+
+            isBootstrap = true;
+        }
 
         if (email.Length == 0 || email.Length > MaxEmailLength || !MailAddress.TryCreate(email, out _))
         {
@@ -70,7 +94,9 @@ public static class RegisterEndpoint
         var hash = hasher.Hash(request.Password);
         var displayName = string.IsNullOrWhiteSpace(request.DisplayName) ? null : request.DisplayName!.Trim();
 
-        var id = await users.CreateAsync(email, hash, displayName, ct);
+        // The account created from a bootstrap invite is the administrator —
+        // there is nobody else to grant it.
+        var id = await users.CreateAsync(email, hash, displayName, isBootstrap, ct);
         var created = await users.GetByIdAsync(id, ct);
 
         if (authOptions.Value.RequireEmailVerification)
@@ -80,7 +106,8 @@ public static class RegisterEndpoint
                 await links.SendVerificationAsync(created, http.Request, ct);
             }
 
-            logger.LogInformation("Register pending verification. UserId={UserId}", id);
+            logger.LogInformation(
+                "Register pending verification. UserId={UserId} Admin={Admin}", id, isBootstrap);
             metrics.Registration("pending-verification");
 
             // No session: login refuses unverified users, so handing one out
@@ -88,31 +115,14 @@ public static class RegisterEndpoint
             return Results.Accepted(value: new PendingVerificationResponse(email.ToLowerInvariant()));
         }
 
-        var identity = new ClaimsIdentity(new[]
+        if (created is not null)
         {
-            new Claim(ClaimTypes.NameIdentifier, id.ToString()),
-            new Claim(ClaimTypes.Email, email.ToLowerInvariant()),
-            new Claim(AuthEndpoints.SecurityStampClaim, (created?.SecurityStamp ?? Guid.Empty).ToString()),
-        }, CookieAuthenticationDefaults.AuthenticationScheme);
+            await AuthEndpoints.SignInAsync(http, created, persistent: true, antiforgery);
+        }
 
-        var principal = new ClaimsPrincipal(identity);
-
-        await http.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            principal,
-            new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(14) });
-
-        // SignInAsync only writes the response cookie; it leaves HttpContext.User
-        // anonymous for the rest of this request. Antiforgery tokens are bound to
-        // the current user, so minting one now would bind it to nobody and every
-        // later authenticated request would reject it.
-        http.User = principal;
-
-        AuthEndpoints.IssueXsrfCookie(http, antiforgery);
-
-        logger.LogInformation("Register success. UserId={UserId}", id);
+        logger.LogInformation("Register success. UserId={UserId} Admin={Admin}", id, isBootstrap);
         metrics.Registration("created");
 
-        return Results.Ok(new LoginEndpoint.UserResponse(id, email.ToLowerInvariant(), displayName));
+        return Results.Ok(new LoginEndpoint.UserResponse(id, email.ToLowerInvariant(), displayName, isBootstrap));
     }
 }

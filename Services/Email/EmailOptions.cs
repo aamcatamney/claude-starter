@@ -37,4 +37,11 @@ public sealed class AuthOptions
     public string AppBaseUrl { get; set; } = string.Empty;
 
     public int BCryptWorkFactor { get; set; } = Services.Auth.BCryptPasswordHasher.DefaultWorkFactor;
+
+    /// <summary>
+    /// Whether anyone may create an account. Off by default: a deployment that
+    /// is reachable is otherwise open to whoever finds it. The first account is
+    /// created from the invite link logged at startup.
+    /// </summary>
+    public bool AllowPublicRegistration { get; set; }
 }
