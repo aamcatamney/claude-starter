@@ -14,7 +14,7 @@ public static class AuthEndpoints
     /// </summary>
     public const string SecurityStampClaim = "security_stamp";
 
-    public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app, bool passkeysEnabled = false)
     {
         var group = app.MapGroup("/api/auth").RequireRateLimiting(RateLimitPolicy);
 
@@ -27,7 +27,59 @@ public static class AuthEndpoints
         group.MapVerifyEmailEndpoint();
         group.MapResendVerificationEndpoint();
 
+        // Mapped only when enabled, so the routes are absent rather than
+        // present-and-refusing.
+        if (passkeysEnabled)
+        {
+            group.MapPasskeyRegisterOptionsEndpoint();
+            group.MapPasskeyRegisterEndpoint();
+            group.MapPasskeySignInOptionsEndpoint();
+            group.MapPasskeySignInEndpoint();
+            group.MapPasskeyListEndpoint();
+            group.MapPasskeyDeleteEndpoint();
+        }
+
         return app;
+    }
+
+    /// <summary>
+    /// Establishes a session. Shared by password and passkey sign-in so both
+    /// carry the same claims — notably the security stamp, without which the
+    /// cookie is rejected on the next request.
+    /// </summary>
+    internal static async Task SignInAsync(
+        HttpContext http,
+        Models.User user,
+        bool persistent,
+        IAntiforgery antiforgery)
+    {
+        var identity = new System.Security.Claims.ClaimsIdentity(
+            new[]
+            {
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, user.Email),
+                new System.Security.Claims.Claim(SecurityStampClaim, user.SecurityStamp.ToString()),
+            },
+            Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
+        await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.SignInAsync(
+            http,
+            Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme,
+            principal,
+            new Microsoft.AspNetCore.Authentication.AuthenticationProperties
+            {
+                IsPersistent = persistent,
+                ExpiresUtc = persistent ? DateTimeOffset.UtcNow.AddDays(14) : null,
+            });
+
+        // SignInAsync writes the cookie but leaves HttpContext.User anonymous,
+        // and antiforgery binds a token to the current user. Without this the
+        // token would be bound to nobody.
+        http.User = principal;
+
+        IssueXsrfCookie(http, antiforgery);
     }
 
     internal static void IssueXsrfCookie(HttpContext http, IAntiforgery antiforgery)

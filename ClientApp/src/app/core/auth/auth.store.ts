@@ -87,6 +87,11 @@ export const AuthStore = signalStore(
         return false;
       }
     },
+    /** Lets a page outside the store surface an auth failure consistently. */
+    setError(error: AuthError): void {
+      patchState(store, { error });
+    },
+
     async logout(): Promise<void> {
       patchState(store, { pending: true });
       try {
