@@ -141,7 +141,7 @@ Two behaviours are deliberate and easy to "fix" by accident:
 | `RateLimit:Auth:PermitLimit` | `10` | Requests per window, per IP, across `/api/auth` |
 | `RateLimit:Auth:WindowSeconds` | `60` | Length of that window |
 | `Passkeys:Enabled` | `false` | Offer passkey registration and sign-in |
-| `Passkeys:RelyingPartyId` | `localhost` | Domain credentials bind to; changing it orphans existing passkeys |
+| `Passkeys:RelyingPartyId` | `localhost` | Host or parent domain credentials bind to; changing it orphans existing passkeys |
 | `Passkeys:RelyingPartyName` | `claude-starter` | Name the device shows when prompting |
 | `Passkeys:Origins` | `http://localhost:5000` | Origins allowed to complete a ceremony |
 | `Metrics:Enabled` | `false` | Collect and push OpenTelemetry metrics |

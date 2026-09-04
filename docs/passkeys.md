@@ -19,7 +19,22 @@ The password stays the account's root. Reset, verification and recovery all keep
 
 Sign-in uses **discoverable credentials**, so the sign-in page asks for no email — the authenticator offers the accounts it holds. That requires resident keys, which every modern platform authenticator supports and some older USB keys do not.
 
-`RelyingPartyId` binds credentials to a domain. **Changing it orphans every passkey already registered**, with no migration: they simply stop being offered. Set it to the registrable domain (`example.com`), not a host or a URL.
+## Choosing a relying party id
+
+`RelyingPartyId` decides which origins a passkey works on. It must either equal the origin's effective domain or be a registrable domain suffix of it, so an app served at `https://portal.example.com` may use either:
+
+| Value | Valid | A passkey then works on |
+| --- | --- | --- |
+| `portal.example.com` | equals the effective domain | `portal.example.com` and anything below it |
+| `example.com` | registrable domain suffix | every `*.example.com` — portal, api, admin |
+| `m.portal.example.com` | no — not a suffix of the origin | |
+| `com` | no — a public suffix | |
+
+It is a scoping decision rather than a correctness one. Use the parent domain when subdomains are one product sharing accounts; use the host when they are separate apps, or when you would rather not have every subdomain able to exercise your users' credentials.
+
+**Neither choice can be revised later.** Broadening `portal.example.com` to `example.com` orphans every passkey already registered, and narrowing does the same. There is no migration: they stop being offered, and each user enrols again.
+
+Never a URL and never a port — those belong in `Origins`.
 
 ## Verification and sessions
 

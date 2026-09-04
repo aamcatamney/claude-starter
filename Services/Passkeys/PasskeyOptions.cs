@@ -11,9 +11,13 @@ public sealed class PasskeyOptions
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// The domain credentials are bound to — "example.com", never a URL and
-    /// never a port. A passkey created under one relying party id cannot be
-    /// used under another, so changing this orphans every existing passkey.
+    /// The domain credentials are bound to. Either the host serving the app
+    /// ("portal.example.com") or a registrable domain suffix of it
+    /// ("example.com") — the latter lets one passkey work across every
+    /// subdomain. Never a URL and never a port; those belong in Origins.
+    ///
+    /// Changing this orphans every passkey already registered, in either
+    /// direction, so it is worth settling before anyone enrols.
     /// </summary>
     public string RelyingPartyId { get; set; } = "localhost";
 
