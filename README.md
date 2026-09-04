@@ -40,7 +40,7 @@ dotnet run
 
 The app creates the database if it is missing, then DbUp applies any pending scripts and records them in `schemaversions`. Re-running is idempotent.
 
-There is no seed user. Register one at `/register` to get in.
+There is no seed user, and **registration is closed by default**. While no account exists the application logs a link at startup for creating the first one, which becomes the administrator — see [docs/admin-and-registration.md](docs/admin-and-registration.md).
 
 ### Dev loop
 
@@ -109,7 +109,7 @@ Every route lives under `/api/auth` and is rate-limited.
 
 | Method | Route | Auth | Purpose |
 | --- | --- | --- | --- |
-| POST | `/api/auth/register` | — | Create an account |
+| POST | `/api/auth/register` | — | Create an account; 403 while registration is closed unless a bootstrap invite is presented |
 | POST | `/api/auth/login` | — | Sign in; sets auth and `XSRF-TOKEN` cookies |
 | POST | `/api/auth/logout` | required | Sign out |
 | GET | `/api/auth/me` | required | The current user |
@@ -131,6 +131,7 @@ Two behaviours are deliberate and easy to "fix" by accident:
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `ConnectionStrings:Postgres` | `localhost:5432`, `postgres`/`postgres` | Database |
+| `Auth:AllowPublicRegistration` | `false` | Whether anyone may sign up. Closed, the first account comes from the link logged at startup |
 | `Auth:RequireEmailVerification` | `false` | Refuse sign-in until the address is confirmed. Forced off while SMTP is disabled |
 | `Auth:AppBaseUrl` | request origin | Origin used to build links in emails |
 | `Auth:BCryptWorkFactor` | `12` | Password hashing cost. Raise as hardware improves |
@@ -186,6 +187,7 @@ Create `Migrations/Scripts/NNNN_description.sql` with a zero-padded sequence num
 | [Email verification and password reset](docs/email-and-passwords.md) | Enabling SMTP, what changes when verification is required, upgrading an existing database |
 | [Frontend styling](docs/frontend-styling.md) | The token layer and component classes, and how to brand them |
 | [Screenshots](docs/screenshots.md) | Every page in both themes, and how to regenerate them |
+| [Administrators and registration](docs/admin-and-registration.md) | Creating the first account, closing sign-up, the admin flag |
 | [Passkeys](docs/passkeys.md) | Enabling WebAuthn sign-in, and what it deliberately does not change |
 | [Metrics](docs/metrics.md) | What is measured, and why nothing is exposed over HTTP |
 | [Continuous integration](docs/continuous-integration.md) | The self-hosted runner, and why fork pull requests stay off it |

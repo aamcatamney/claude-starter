@@ -184,6 +184,10 @@
     @apply mb-4 rounded-control border border-danger-line bg-danger-surface px-3 py-2 text-sm text-danger;
   }
 
+  .chip {
+    @apply rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-ink-muted;
+  }
+
   /* Chrome */
   .app-header {
     @apply border-b border-line bg-surface;

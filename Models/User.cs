@@ -8,6 +8,7 @@ public sealed class User
     public string? DisplayName { get; init; }
     public bool IsActive { get; init; }
     public bool EmailVerified { get; init; }
+    public bool IsAdmin { get; init; }
     public Guid SecurityStamp { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }

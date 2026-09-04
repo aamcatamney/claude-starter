@@ -24,7 +24,13 @@ public class DatabaseFixture : IAsyncLifetime
     /// a different posture, such as email verification being required.
     /// </summary>
     protected virtual IReadOnlyDictionary<string, string?> Settings { get; } =
-        new Dictionary<string, string?>();
+        new Dictionary<string, string?>
+        {
+            // Production closes registration; most tests are about what happens
+            // once someone has an account, so they open it. The tests that are
+            // about the door itself set this themselves.
+            ["Auth:AllowPublicRegistration"] = "true",
+        };
 
     public string ConnectionString { get; private set; } = null!;
     public TestWebApplicationFactory Factory { get; private set; } = null!;

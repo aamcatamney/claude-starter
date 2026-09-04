@@ -95,7 +95,7 @@ public static class PasskeySignInEndpoint
             logger.LogInformation("Passkey sign-in. UserId={UserId} PasskeyId={PasskeyId}", user.Id, stored.Id);
             metrics.SignIn("success");
 
-            return Results.Ok(new LoginEndpoint.UserResponse(user.Id, user.Email, user.DisplayName));
+            return Results.Ok(new LoginEndpoint.UserResponse(user.Id, user.Email, user.DisplayName, user.IsAdmin));
         }
         catch (Fido2VerificationException ex)
         {

@@ -14,6 +14,11 @@ public static class AuthEndpoints
     /// </summary>
     public const string SecurityStampClaim = "security_stamp";
 
+    /// <summary>Role carried by administrators, and the policy that requires it.</summary>
+    public const string AdminRole = "admin";
+
+    public const string AdminPolicy = "admin";
+
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app, bool passkeysEnabled = false)
     {
         var group = app.MapGroup("/api/auth").RequireRateLimiting(RateLimitPolicy);
@@ -59,7 +64,12 @@ public static class AuthEndpoints
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, user.Email),
                 new System.Security.Claims.Claim(SecurityStampClaim, user.SecurityStamp.ToString()),
-            },
+            }
+            .Concat(user.IsAdmin
+                // A role claim, so endpoints can say RequireAuthorization(AdminPolicy).
+                ? new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, AdminRole) }
+                : [])
+            .ToArray(),
             Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
 
         var principal = new System.Security.Claims.ClaimsPrincipal(identity);

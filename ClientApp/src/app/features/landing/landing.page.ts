@@ -17,6 +17,9 @@ import { isWebAuthnAvailable } from '../../core/passkeys/webauthn';
             <span class="prose-note" aria-live="polite">
               Hi, <span class="font-medium text-ink">{{ store.displayName() }}</span>
             </span>
+            @if (store.user()?.isAdmin) {
+              <span class="chip">Admin</span>
+            }
             <button
               type="button"
               (click)="logout()"

@@ -29,6 +29,8 @@ builder.Services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserTokenRepository, UserTokenRepository>();
 builder.Services.AddScoped<EmailLinkService>();
+builder.Services.AddSingleton<BootstrapInviteService>();
+builder.Services.AddHostedService<BootstrapInviteLogger>();
 builder.Services.AddHostedService<TokenCleanupService>();
 
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
@@ -172,7 +174,13 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Nothing here uses it yet — there is nothing administrative in a
+    // template — but the wiring is what a project would otherwise redo.
+    options.AddPolicy(AuthEndpoints.AdminPolicy, policy =>
+        policy.RequireRole(AuthEndpoints.AdminRole));
+});
 
 builder.Services.AddAntiforgery(options =>
 {

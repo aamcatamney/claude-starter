@@ -8,6 +8,7 @@ public sealed class PasskeysEnabledFixture : DatabaseFixture
     protected override IReadOnlyDictionary<string, string?> Settings { get; } =
         new Dictionary<string, string?>
         {
+            ["Auth:AllowPublicRegistration"] = "true",
             ["Passkeys:Enabled"] = "true",
             ["Passkeys:RelyingPartyId"] = "localhost",
             ["Passkeys:Origins:0"] = "http://localhost",
