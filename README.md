@@ -204,6 +204,7 @@ Things a reader would otherwise have to reverse-engineer, and the trade-offs beh
 | [0003](docs/adr/0003-logout-is-not-gated-on-the-antiforgery-token.md) | Logout signs you out even when the antiforgery token is rejected |
 | [0004](docs/adr/0004-integration-tests-share-a-container-and-isolate-by-database.md) | Integration tests share one container and isolate by database |
 | [0005](docs/adr/0005-email-links-are-hashed-single-use-and-cannot-outrun-smtp.md) | Email links are stored hashed and single-use, and verification cannot outrun SMTP |
+| [0006](docs/adr/0006-vitest-moves-with-angular.md) | Vitest shares Angular's Dependabot group, because `@angular/build` decides which major it accepts |
 
 ## License
 

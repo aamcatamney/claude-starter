@@ -26,25 +26,25 @@
     "node": "^22.22.3 || >=24.15.0"
   },
   "dependencies": {
-    "@angular/common": "^22.1.5",
-    "@angular/compiler": "^22.1.5",
-    "@angular/core": "^22.1.5",
-    "@angular/forms": "^22.1.5",
-    "@angular/platform-browser": "^22.1.5",
-    "@angular/router": "^22.1.5",
-    "@ngrx/signals": "^22.0.0",
+    "@angular/common": "^22.2.2",
+    "@angular/compiler": "^22.2.2",
+    "@angular/core": "^22.2.2",
+    "@angular/forms": "^22.2.2",
+    "@angular/platform-browser": "^22.2.2",
+    "@angular/router": "^22.2.2",
+    "@ngrx/signals": "^22.0.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@angular/build": "^22.1.7",
-    "@angular/cli": "^22.1.7",
-    "@angular/compiler-cli": "^22.1.5",
+    "@angular/build": "^22.2.2",
+    "@angular/cli": "^22.2.2",
+    "@angular/compiler-cli": "^22.2.2",
     "@tailwindcss/postcss": "^4.1.12",
-    "jsdom": "^30.0.1",
-    "postcss": "^8.5.3",
+    "jsdom": "^30.1.0",
+    "postcss": "^8.5.28",
     "tailwindcss": "^4.1.12",
     "typescript": "~6.0.3",
-    "vitest": "^4.0.8"
+    "vitest": "^5.0.1"
   }
 }
