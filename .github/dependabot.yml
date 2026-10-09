@@ -14,16 +14,17 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
-    # typescript and @ngrx/* peer-depend on @angular/*, so they must move in
-    # the same PR — split across groups, neither PR can resolve on its own.
+    # typescript, vitest and @ngrx/* are peer-coupled to @angular/*, so they
+    # must move in the same PR — split across groups, neither PR can resolve
+    # on its own. See docs/adr/0002 and 0006.
     groups:
       angular:
         patterns:
-          ['@angular/*', '@angular-devkit/*', '@ngrx/*', 'typescript', 'zone.js']
+          ['@angular/*', '@angular-devkit/*', '@ngrx/*', 'typescript', 'vitest', 'zone.js']
       other:
         patterns: ['*']
         exclude-patterns:
-          ['@angular/*', '@angular-devkit/*', '@ngrx/*', 'typescript', 'zone.js']
+          ['@angular/*', '@angular-devkit/*', '@ngrx/*', 'typescript', 'vitest', 'zone.js']
     # A TypeScript major is only ever allowed by an Angular major's
     # @angular/build peer range, so it is never a standalone bot bump.
     ignore:
