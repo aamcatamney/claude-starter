@@ -13,7 +13,7 @@ COPY ClientApp/ ./
 RUN npm run build -- --configuration production
 
 # Stage 2: build .NET backend
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS server-build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS server-build
 # Release workflow passes the CalVer version; local builds get the default.
 ARG VERSION=0.0.0
 WORKDIR /src
